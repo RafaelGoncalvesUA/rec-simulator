@@ -1,2 +1,5 @@
-python-microgrid # pymgrid
+python-microgrid # pymgrid should be installed from the git repository
 numpy
+gym
+stable_baselines3
+shimmy
