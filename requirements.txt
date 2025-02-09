@@ -1,5 +1,14 @@
+# SIMULATION
 python-microgrid # pymgrid should be installed from the git repository
 numpy
 gym
 stable_baselines3
-shimmy
+shimmy # necessary to use the gymnasium
+
+# KUBEFLOW
+kfp
+docker # necessary to use DockerRunner
+
+# LOCAL TESTS OF KAFKA CONSUMER
+minio
+kafka-python-ng
