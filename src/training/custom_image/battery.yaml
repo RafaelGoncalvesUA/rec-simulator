@@ -1,0 +1,21 @@
+battery1:
+  battery_cost_cycle: 0.02
+  efficiency: 0.9
+  init_charge: null
+  init_soc: 0.2
+  initial_step: 0
+  max_capacity: 1452
+  max_charge: 363
+  max_discharge: 363
+  min_capacity: 290.40000000000003
+
+battery2:
+  battery_cost_cycle: 0.02
+  efficiency: 0.9
+  init_charge: null
+  init_soc: 0.2
+  initial_step: 0
+  max_capacity: 1452
+  max_charge: 363
+  max_discharge: 363
+  min_capacity: 290.40000000000003

@@ -3,6 +3,7 @@ import os
 from pymgrid import Microgrid
 from pymgrid.modules import BatteryModule, LoadModule, RenewableModule, GridModule
 import yaml
+import pickle
 import pandas as pd
 
 parser = argparse.ArgumentParser(description='Load a dataset', formatter_class=argparse.RawTextHelpFormatter)
@@ -75,6 +76,7 @@ batteries = [
 microgrid = Microgrid([*batteries, *renewables, *loads, grid])
 
 os.makedirs(args.microgrid, exist_ok=True)
+pickle.dump(microgrid, open(os.path.join(args.microgrid, 'env.pkl'), 'wb'))
 microgrid.dump(open(os.path.join(args.microgrid, 'env.yaml'), 'w'))
 
 print(f'Microgrid saved to {args.microgrid}')

@@ -5,7 +5,7 @@ gym
 stable_baselines3
 shimmy # necessary to use the gymnasium
 
-# KUBEFLOW
+# KUBEFLOW/home/rafael/Transferências/batch_20250207171510 (1).json
 kfp
 docker # necessary to use DockerRunner
 

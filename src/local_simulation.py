@@ -1,6 +1,6 @@
-from utils.load_env import *
-from utils.custom_env import *
-from pipeline.agent.ppo import *
+from training.custom_image.load_env import *
+from training.custom_image.custom_env import *
+from agent.ppo import *
 
 TRAIN_ITERATIONS = 100
 TEST_ITERATIONS = 1
