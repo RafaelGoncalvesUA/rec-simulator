@@ -2,7 +2,7 @@ from kfp import dsl
 from kfp.dsl import Input, Model
 
 @dsl.component(
-    base_image="registry.localhost/pipeline-custom-image:latest",
+    base_image="rafego16/pipeline-custom-image:latest",
     packages_to_install=["minio"],
 )
 def agent_storing(agent: Input[Model]):

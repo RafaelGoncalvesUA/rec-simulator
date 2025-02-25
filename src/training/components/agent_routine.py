@@ -2,7 +2,7 @@ from kfp import dsl
 from kfp.dsl import Input, Output, Artifact, Model
 
 
-@dsl.component(base_image="registry.localhost/pipeline-custom-image-train:latest")
+@dsl.component(base_image="rafego16/pipeline-custom-image-train:latest")
 def agent_routine(env: Input[Artifact], agent: Output[Model]):
     from load_env import load_env_from_dataset
     from custom_env import MicrogridEnv, api_price_function

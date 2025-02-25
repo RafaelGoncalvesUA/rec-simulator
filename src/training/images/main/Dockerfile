@@ -1,4 +1,4 @@
-FROM registry.localhost/pipeline-custom-image-builder:latest AS builder
+FROM pipeline-custom-image-builder:latest AS builder
 FROM python:3.11-slim
 
 COPY --from=builder /root/.cargo/bin /root/.cargo/bin
@@ -11,7 +11,5 @@ COPY . .
 
 RUN python3 -m pip install python-dotenv
 
-# docker build -t registry.localhost/pipeline-custom-image:latest .
-# docker push registry.localhost/pipeline-custom-image:latest
-
-# pull image in all nodes
+# docker build -t rafego16/pipeline-custom-image:latest .
+# docker push rafego16/pipeline-custom-image:latest

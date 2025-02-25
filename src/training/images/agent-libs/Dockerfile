@@ -1,4 +1,4 @@
-FROM registry.localhost/pipeline-custom-image:latest AS base
+FROM rafego16/pipeline-custom-image:latest AS base
 FROM nvidia/cuda:11.8.0-base-ubuntu22.04
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
@@ -20,8 +20,8 @@ RUN pip3 --no-cache-dir install stable-baselines3 joblib
 WORKDIR /app
 COPY . .
 
-# docker build -t registry.localhost/pipeline-custom-image-train:latest .
-# docker save registry.localhost/pipeline-custom-image-train:latest -o train.tar
+# docker build -t rafego16/pipeline-custom-image-train:latest .
+# docker save rafego16/pipeline-custom-image-train:latest -o train.tar
 
 # for all nodes: 
 # scp train.tar <ip>:~/train.tar

@@ -2,7 +2,7 @@ from kfp import dsl
 from kfp.dsl import Input, Output, Artifact
 
 
-@dsl.component(base_image="registry.localhost/pipeline-custom-image:latest")
+@dsl.component(base_image="rafego16/pipeline-custom-image:latest")
 def data_preparation(dataset_dir: Input[Artifact], env: Output[Artifact]):
     from pymgrid import Microgrid
     from pymgrid.modules import BatteryModule, LoadModule, RenewableModule, GridModule

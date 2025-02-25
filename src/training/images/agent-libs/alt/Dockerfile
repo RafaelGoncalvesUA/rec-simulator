@@ -1,4 +1,4 @@
-FROM registry.localhost/pipeline-custom-image:latest AS base
+FROM rafego16/pipeline-custom-image:latest AS base
 RUN pip install --default-timeout=100 torch stable-baselines3 joblib
 
 FROM python:3.11-slim
@@ -10,5 +10,5 @@ COPY --from=base /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.
 WORKDIR /app
 COPY . .
 
-# docker build -t registry.localhost/pipeline-custom-image-train:latest .
-# docker push registry.localhost/pipeline-custom-image-train:latest
+# docker build -t rafego16/pipeline-custom-image-train:latest .
+# docker push rafego16/pipeline-custom-image-train:latest

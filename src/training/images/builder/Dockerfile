@@ -28,5 +28,4 @@ RUN apt-get remove build-essential cmake g++ curl -y && \
     rm -rf /var/cache/apk/* && \
     rm -rf /root/.cache/pip
 
-# docker build -t registry.localhost/pipeline-custom-image-builder:latest .
-# docker push registry.localhost/pipeline-custom-image-builder:latest
+# docker build -t pipeline-custom-image-builder:latest .

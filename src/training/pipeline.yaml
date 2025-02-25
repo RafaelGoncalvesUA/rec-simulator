@@ -89,7 +89,7 @@ deploymentSpec:
           , environment, verbose=2)\n    agent.learn(total_timesteps)\n    print(\"\
           Training completed.\")\n\n    output_path = Path(agent.path)\n    joblib.dump(agent,\
           \ output_path)\n    print(f\"Agent saved.\")\n\n"
-        image: registry.localhost/pipeline-custom-image-train:latest
+        image: rafego16/pipeline-custom-image-train:latest
     exec-agent-storing:
       container:
         args:
@@ -128,7 +128,7 @@ deploymentSpec:
           \    \"agents\",\n        agent.path.split(\"/\")[-1],\n        agent.path,\n\
           \    )\n\n    print(f\"Agent {agent.path.split('/')[-1]} uploaded to MinIO.\"\
           )\n\n"
-        image: registry.localhost/pipeline-custom-image:latest
+        image: rafego16/pipeline-custom-image:latest
     exec-data-ingestion:
       container:
         args:
@@ -171,7 +171,7 @@ deploymentSpec:
           \n    )\n    df[df[\"id\"] == \"load1\"][\"l0\"].to_csv(f\"{dataset_dir.path}/loads/load1.csv\"\
           )\n    df[df[\"id\"] == \"renewable1\"][\"r0\"].to_csv(\n        f\"{dataset_dir.path}/renewables/renewable1.csv\"\
           \n    )\n\n"
-        image: registry.localhost/pipeline-custom-image:latest
+        image: rafego16/pipeline-custom-image:latest
     exec-data-preparation:
       container:
         args:
@@ -225,7 +225,7 @@ deploymentSpec:
           \ ]\n\n    microgrid = Microgrid([*batteries, *renewables, *loads, grid])\n\
           \n    os.makedirs(env.path, exist_ok=True)\n    microgrid.dump(open(os.path.join(env.path,\
           \ 'env.yaml'), 'w'))\n\n    print(f'Microgrid saved to {env.path}')\n\n"
-        image: registry.localhost/pipeline-custom-image:latest
+        image: rafego16/pipeline-custom-image:latest
 pipelineInfo:
   name: agent-pipeline
 root:

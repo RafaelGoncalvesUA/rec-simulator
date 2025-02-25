@@ -3,7 +3,7 @@ from kfp.dsl import Output, Artifact
 
 
 @dsl.component(
-    base_image="registry.localhost/pipeline-custom-image:latest",
+    base_image="rafego16/pipeline-custom-image:latest",
     packages_to_install=["minio"],
 )
 def data_ingestion(batch_file: str, dataset_dir: Output[Artifact]):
