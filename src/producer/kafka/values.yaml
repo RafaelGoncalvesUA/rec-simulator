@@ -1,0 +1,10 @@
+controller:
+  replicaCount: 3
+
+  autoscaling:
+    hpa:
+      enabled: true
+      minReplicas: 3
+      maxReplicas: 6
+      targetCPU: 80
+      targetMemory: 80

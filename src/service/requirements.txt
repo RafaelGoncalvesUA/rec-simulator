@@ -1,0 +1,5 @@
+fastapi
+uvicorn
+# stable-baselines3
+joblib
+kserve

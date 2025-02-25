@@ -5,9 +5,11 @@ gym
 stable_baselines3
 shimmy # necessary to use the gymnasium
 
-# KUBEFLOW/home/rafael/Transferências/batch_20250207171510 (1).json
-kfp
+# KUBEFLOW
+kfp[kubernetes]
 docker # necessary to use DockerRunner
+model-registry
+kserve
 
 # LOCAL TESTS OF KAFKA CONSUMER
 minio

@@ -2,9 +2,29 @@
 # Name: agent-pipeline
 # Inputs:
 #    batch_file: str
-# Outputs:
-#    Output: str
 components:
+  comp-agent-routine:
+    executorLabel: exec-agent-routine
+    inputDefinitions:
+      artifacts:
+        env:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+    outputDefinitions:
+      artifacts:
+        agent:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+  comp-agent-storing:
+    executorLabel: exec-agent-storing
+    inputDefinitions:
+      artifacts:
+        agent:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
   comp-data-ingestion:
     executorLabel: exec-data-ingestion
     inputDefinitions:
@@ -13,7 +33,7 @@ components:
           parameterType: STRING
     outputDefinitions:
       artifacts:
-        output_artifact:
+        dataset_dir:
           artifactType:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
@@ -21,16 +41,94 @@ components:
     executorLabel: exec-data-preparation
     inputDefinitions:
       artifacts:
-        input_artifact:
+        dataset_dir:
           artifactType:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
     outputDefinitions:
-      parameters:
-        Output:
-          parameterType: STRING
+      artifacts:
+        env:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
 deploymentSpec:
   executors:
+    exec-agent-routine:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - agent_routine
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.11.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef agent_routine(env: Input[Artifact], agent: Output[Model]):\n\
+          \    from load_env import load_env_from_dataset\n    from custom_env import\
+          \ MicrogridEnv, api_price_function\n    import joblib\n    from pathlib\
+          \ import Path\n    from stable_baselines3 import PPO\n\n    microgrid =\
+          \ load_env_from_dataset(f\"{env.path}/env.yaml\")\n    environment = MicrogridEnv(microgrid,\
+          \ api_price_function)\n\n    total_timesteps = 1000\n    print(f\"Training\
+          \ PPO agent for {total_timesteps} timesteps...\")\n    agent = PPO(\"MlpPolicy\"\
+          , environment, verbose=2)\n    agent.learn(total_timesteps)\n    print(\"\
+          Training completed.\")\n\n    output_path = Path(agent.path)\n    joblib.dump(agent,\
+          \ output_path)\n    print(f\"Agent saved.\")\n\n"
+        image: registry.localhost/pipeline-custom-image-train:latest
+    exec-agent-storing:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - agent_storing
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.11.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'minio' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef agent_storing(agent: Input[Model]):\n    from minio import Minio\n\
+          \    from dotenv import load_dotenv\n    import os\n\n    load_dotenv(dotenv_path=\"\
+          /app/.env\")\n\n    minio_client = Minio(\n        endpoint=os.getenv(\"\
+          MINIO_ENDPOINT\"),\n        access_key=os.getenv(\"MINIO_ACCESS_KEY\"),\n\
+          \        secret_key=os.getenv(\"MINIO_SECRET_KEY\"),\n        secure=False,\n\
+          \    )\n\n    # create a new bucket called 'agents'\n    if not minio_client.bucket_exists(\"\
+          agents\"):\n        minio_client.make_bucket(\"agents\")\n\n    # upload\
+          \ the agent to the 'agents' bucket\n    minio_client.fput_object(\n    \
+          \    \"agents\",\n        agent.path.split(\"/\")[-1],\n        agent.path,\n\
+          \    )\n\n    print(f\"Agent {agent.path.split('/')[-1]} uploaded to MinIO.\"\
+          )\n\n"
+        image: registry.localhost/pipeline-custom-image:latest
     exec-data-ingestion:
       container:
         args:
@@ -58,13 +156,21 @@ deploymentSpec:
 
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
-          \ *\n\ndef data_ingestion(batch_file: str, output_artifact: Output[Artifact]):\n\
-          \    from minio import Minio\n    from dotenv import load_dotenv\n    import\
-          \ os\n\n    load_dotenv(dotenv_path=\"/app/.env\")\n\n    minio_client =\
-          \ Minio(\n        endpoint=os.getenv(\"MINIO_ENDPOINT\"),\n        access_key=os.getenv(\"\
-          MINIO_ACCESS_KEY\"),\n        secret_key=os.getenv(\"MINIO_SECRET_KEY\"\
-          ),\n        secure=False,\n    )\n\n    minio_client.fget_object(os.getenv(\"\
-          MINIO_BUCKET\"), batch_file, output_artifact.path)\n\n"
+          \ *\n\ndef data_ingestion(batch_file: str, dataset_dir: Output[Artifact]):\n\
+          \    from minio import Minio\n    import pandas as pd\n    from dotenv import\
+          \ load_dotenv\n    import os\n\n    load_dotenv(dotenv_path=\"/app/.env\"\
+          )\n\n    minio_client = Minio(\n        endpoint=os.getenv(\"MINIO_ENDPOINT\"\
+          ),\n        access_key=os.getenv(\"MINIO_ACCESS_KEY\"),\n        secret_key=os.getenv(\"\
+          MINIO_SECRET_KEY\"),\n        secure=False,\n    )\n\n    # retrieve batch\
+          \ file from MinIO's specified bucket\n    minio_client.fget_object(os.getenv(\"\
+          MINIO_BUCKET\"), batch_file, \"batch.json\")\n\n    os.makedirs(f\"{dataset_dir.path}/grid\"\
+          , exist_ok=True)\n    os.makedirs(f\"{dataset_dir.path}/loads\", exist_ok=True)\n\
+          \    os.makedirs(f\"{dataset_dir.path}/renewables\", exist_ok=True)\n\n\
+          \    df = pd.read_json(\"batch.json\")\n    df[df[\"id\"] == \"grid1\"][[\"\
+          g0\", \"g1\", \"g2\", \"g3\"]].to_csv(\n        f\"{dataset_dir.path}/grid/grid.csv\"\
+          \n    )\n    df[df[\"id\"] == \"load1\"][\"l0\"].to_csv(f\"{dataset_dir.path}/loads/load1.csv\"\
+          )\n    df[df[\"id\"] == \"renewable1\"][\"r0\"].to_csv(\n        f\"{dataset_dir.path}/renewables/renewable1.csv\"\
+          \n    )\n\n"
         image: registry.localhost/pipeline-custom-image:latest
     exec-data-preparation:
       container:
@@ -92,21 +198,69 @@ deploymentSpec:
 
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
-          \ *\n\ndef data_preparation(input_artifact: Input[Artifact]) -> str:\n \
-          \   from custom_env import MicrogridEnv\n    import pandas as pd\n\n   \
-          \ df = pd.read_json(input_artifact.path)\n    return str(df.head())\n\n"
+          \ *\n\ndef data_preparation(dataset_dir: Input[Artifact], env: Output[Artifact]):\n\
+          \    from pymgrid import Microgrid\n    from pymgrid.modules import BatteryModule,\
+          \ LoadModule, RenewableModule, GridModule\n    import yaml\n    import pandas\
+          \ as pd\n    import os\n\n    grid = None\n    loads = []\n    renewables\
+          \ = []\n\n    config = yaml.safe_load(open(\"config.yaml\", 'r'))\n\n  \
+          \  # TODO: support multiple grids\n    for module in ['grid', 'loads', 'renewables']:\n\
+          \        if os.path.exists(os.path.join(dataset_dir.path, module)):\n  \
+          \          if module == 'grid':\n                filename = os.listdir(os.path.join(dataset_dir.path,\
+          \ module))[0]\n                ts = pd.read_csv(os.path.join(dataset_dir.path,\
+          \ module, filename), index_col=0)\n\n                grid = GridModule(\n\
+          \                    max_export=config['max_export'],\n                \
+          \    max_import=config['max_import'],\n                    time_series=ts,\n\
+          \                )\n\n            elif module in {'loads', 'renewables'}:\n\
+          \                for filename in os.listdir(os.path.join(dataset_dir.path,\
+          \ module)):\n                    ts = pd.read_csv(os.path.join(dataset_dir.path,\
+          \ module, filename), index_col=0)\n\n                    if module == 'loads':\n\
+          \                        loads.append(\n                            LoadModule(time_series=ts)\n\
+          \                        )\n\n                    elif module == 'renewables':\n\
+          \                        src_type = filename.split('_')[0]\n\n         \
+          \               renewables.append(\n                            (src_type,\
+          \ RenewableModule(time_series=ts))\n                        )\n        else:\n\
+          \            print(f'{module} directory not found. Exiting...')\n      \
+          \      exit(1)\n\n\n    batteries = [\n        BatteryModule(**b)\n    \
+          \    for b in yaml.safe_load(open(\"battery.yaml\", 'r')).values()\n   \
+          \ ]\n\n    microgrid = Microgrid([*batteries, *renewables, *loads, grid])\n\
+          \n    os.makedirs(env.path, exist_ok=True)\n    microgrid.dump(open(os.path.join(env.path,\
+          \ 'env.yaml'), 'w'))\n\n    print(f'Microgrid saved to {env.path}')\n\n"
         image: registry.localhost/pipeline-custom-image:latest
 pipelineInfo:
   name: agent-pipeline
 root:
   dag:
-    outputs:
-      parameters:
-        Output:
-          valueFromParameter:
-            outputParameterKey: Output
-            producerSubtask: data-preparation
     tasks:
+      agent-routine:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-agent-routine
+        dependentTasks:
+        - data-preparation
+        inputs:
+          artifacts:
+            env:
+              taskOutputArtifact:
+                outputArtifactKey: env
+                producerTask: data-preparation
+        taskInfo:
+          name: agent-routine
+      agent-storing:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-agent-storing
+        dependentTasks:
+        - agent-routine
+        inputs:
+          artifacts:
+            agent:
+              taskOutputArtifact:
+                outputArtifactKey: agent
+                producerTask: agent-routine
+        taskInfo:
+          name: agent-storing
       data-ingestion:
         cachingOptions:
           enableCache: true
@@ -127,19 +281,15 @@ root:
         - data-ingestion
         inputs:
           artifacts:
-            input_artifact:
+            dataset_dir:
               taskOutputArtifact:
-                outputArtifactKey: output_artifact
+                outputArtifactKey: dataset_dir
                 producerTask: data-ingestion
         taskInfo:
           name: data-preparation
   inputDefinitions:
     parameters:
       batch_file:
-        parameterType: STRING
-  outputDefinitions:
-    parameters:
-      Output:
         parameterType: STRING
 schemaVersion: 2.1.0
 sdkVersion: kfp-2.11.0

@@ -1,4 +1,4 @@
-from training.consumer.kfp_client_manager import KFPClientManager
+from consumer.kfp_client_manager import KFPClientManager
 
 kfp_client_manager = KFPClientManager(
     api_url="http://localhost:8080/pipeline",
@@ -13,7 +13,7 @@ kfp_client_manager = KFPClientManager(
 kfp_client = kfp_client_manager.create_kfp_client()
 
 run = kfp_client.create_run_from_pipeline_package(
-    pipeline_file='training/pipeline.yaml',
+    pipeline_file='pipeline.yaml',
     namespace='kubeflow-user-example-com',
     arguments={
         'batch_file': 'batch_20250207171510.json',

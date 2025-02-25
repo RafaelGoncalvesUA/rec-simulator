@@ -1,3 +1,8 @@
+# Drafts - including all python files that are not in subdirectories (examples/src)
+/*.py
+draft.sh
+**.pkl
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
