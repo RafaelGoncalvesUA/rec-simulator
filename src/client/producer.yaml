@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  producer:
+    image: producer
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: python producer.py

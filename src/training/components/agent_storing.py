@@ -27,7 +27,9 @@ def agent_storing(agent: Input[Model]):
     minio_client.fput_object(
         "agents",
         agent.path.split("/")[-1],
-        agent.path,
+        f"{agent.path}.zip",
     )
 
     print(f"Agent {agent.path.split('/')[-1]} uploaded to MinIO.")
+
+    # TODO: notify inference service

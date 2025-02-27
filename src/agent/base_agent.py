@@ -11,5 +11,5 @@ class BaseAgent(ABC):
         pass
 
     @abstractmethod
-    def load(self, path_str: str):
+    def load(path_str: str):
         pass
