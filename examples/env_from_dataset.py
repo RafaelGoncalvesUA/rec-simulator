@@ -30,7 +30,7 @@ dataset/
 parser.epilog = msg
 args = parser.parse_args()
 
-grid = None
+grids = []
 loads = []
 renewables = []
 
@@ -38,31 +38,30 @@ config = yaml.safe_load(open(args.config, 'r'))
 
 for module in ['grid', 'loads', 'renewables']:
     if os.path.exists(os.path.join(args.dataset, module)):
-        if module == 'grid':
-            filename = os.listdir(os.path.join(args.dataset, module))[0]
+
+        for filename in os.listdir(os.path.join(args.dataset, module)):
             ts = pd.read_csv(os.path.join(args.dataset, module, filename), index_col=0)
 
-            grid = GridModule(
-                max_export=config['max_export'],
-                max_import=config['max_import'],
-                time_series=ts,
-            )
-
-        elif module in {'loads', 'renewables'}:
-            for filename in os.listdir(os.path.join(args.dataset, module)):
-                ts = pd.read_csv(os.path.join(args.dataset, module, filename), index_col=0)
-
-                if module == 'loads':
-                    loads.append(
-                        LoadModule(time_series=ts)
+            if module == 'grid':
+                grids.append(
+                    GridModule(
+                        max_export=config['max_export'],
+                        max_import=config['max_import'],
+                        time_series=ts,
                     )
+                )
 
-                elif module == 'renewables':
-                    src_type = filename.split('_')[0]
+            if module == 'loads':
+                loads.append(
+                    LoadModule(time_series=ts)
+                )
 
-                    renewables.append(
-                        (src_type, RenewableModule(time_series=ts))
-                    )
+            elif module == 'renewables':
+                src_type = filename.split('_')[0]
+
+                renewables.append(
+                    (src_type, RenewableModule(time_series=ts))
+                )
     else:
         print(f'{module} directory not found. Exiting...')
         exit(1)
@@ -73,7 +72,7 @@ batteries = [
     for b in yaml.safe_load(open(args.battery, 'r')).values()
 ]
 
-microgrid = Microgrid([*batteries, *renewables, *loads, grid])
+microgrid = Microgrid([*batteries, *renewables, *loads, *grids])
 
 os.makedirs(args.microgrid, exist_ok=True)
 pickle.dump(microgrid, open(os.path.join(args.microgrid, 'env.pkl'), 'wb'))

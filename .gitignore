@@ -1,7 +1,8 @@
-# Drafts - including all python files that are not in subdirectories (examples/src)
-/*.py
-draft.sh
+# Drafts, temp files
+tmp/
 **.pkl
+*.zip
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

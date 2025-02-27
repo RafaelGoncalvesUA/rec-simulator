@@ -17,12 +17,11 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 RUN pip3 --no-cache-dir install torch --index-url https://download.pytorch.org/whl/cu118
 RUN pip3 --no-cache-dir install stable-baselines3 joblib
 
+# extra layer (added after the first build)
+RUN pip3 install shimmy
+
 WORKDIR /app
 COPY . .
 
 # docker build -t rafego16/pipeline-custom-image-train:latest .
-# docker save rafego16/pipeline-custom-image-train:latest -o train.tar
-
-# for all nodes: 
-# scp train.tar <ip>:~/train.tar
-# run the following command on the registry server: "docker load -i train.tar"
+# docker push rafego16/pipeline-custom-image-train:latest

@@ -29,10 +29,19 @@ def data_ingestion(batch_file: str, dataset_dir: Output[Artifact]):
     os.makedirs(f"{dataset_dir.path}/renewables", exist_ok=True)
 
     df = pd.read_json("batch.json")
-    df[df["id"] == "grid1"][["g0", "g1", "g2", "g3"]].to_csv(
-        f"{dataset_dir.path}/grid/grid.csv"
-    )
-    df[df["id"] == "load1"]["l0"].to_csv(f"{dataset_dir.path}/loads/load1.csv")
-    df[df["id"] == "renewable1"]["r0"].to_csv(
-        f"{dataset_dir.path}/renewables/renewable1.csv"
-    )
+    ids = df["id"].unique()
+
+    for module in ids:
+        if module.startswith("grid"):
+            df[df["id"] == module][["g0", "g1", "g2", "g3"]].to_csv(
+                f"{dataset_dir.path}/grid/{module}.csv"
+            )
+        elif module.startswith("load"):
+            df[df["id"] == module]["l0"].to_csv(
+                f"{dataset_dir.path}/loads/{module}.csv"
+            )
+        elif module.startswith("renewable"):
+            df[df["id"] == module]["r0"].to_csv(
+                f"{dataset_dir.path}/renewables/{module}.csv"
+            )
+

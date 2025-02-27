@@ -1,6 +1,6 @@
-from training.custom_image.load_env import *
-from training.custom_image.custom_env import *
-from agent.ppo import *
+from utils.load_env import *
+from utils.custom_env import *
+from agent.sb3_agent import SB3Agent
 
 TRAIN_ITERATIONS = 100
 TEST_ITERATIONS = 1
@@ -8,7 +8,8 @@ TEST_ITERATIONS = 1
 microgrid = load_env_from_dataset("../example/env_from_dataset/env.yaml")
 env = MicrogridEnv(microgrid, api_price_function)
 
-agent = ppo_agent(env, total_timesteps=100)
+agent = SB3Agent("PPO", env)
+agent.learn(env, total_timesteps=TRAIN_ITERATIONS)
 
 obs = env.reset()
 done = False
@@ -17,11 +18,10 @@ total_reward = 0
 print("Running simulation...")
 for ep in range(TEST_ITERATIONS):
     # action, _ = agent.predict(obs, deterministic=False)
-    action = microgrid.get_empty_action()
+    action = [0]
     obs, reward, done, info = env.step(action)
-    print(obs)
     print(f"Episode {ep} | Reward: {reward:.2f}")
     total_reward += reward
 
 print(f"Total reward: {total_reward:.2f}")
-save_agent(agent, "ppo_agent")
+agent.save("agent.zip")

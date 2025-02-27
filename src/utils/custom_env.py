@@ -1,8 +1,8 @@
-import gym
+from gym import Env
 from gym import spaces
 import numpy as np
 
-class MicrogridEnv(gym.Env):
+class MicrogridEnv(Env):
     def __init__(self, microgrid, api_price_function):
         super(MicrogridEnv, self).__init__()
         
