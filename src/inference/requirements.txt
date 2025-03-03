@@ -1,2 +1,3 @@
 kserve
 minio
+python-dotenv

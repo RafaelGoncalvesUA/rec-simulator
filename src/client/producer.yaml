@@ -1,12 +1,17 @@
-version: '3.8'
-
-services:
-  producer:
-    image: producer
-    build:
-      context: .
-      dockerfile: Dockerfile
-    volumes:
-      - .:/app
-    working_dir: /app
-    command: python producer.py
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: producer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: producer
+  template:
+    metadata:
+      labels:
+        app: producer
+    spec:
+      containers:
+        - name: producer-container
+          image: rafego16/rec-producer:latest

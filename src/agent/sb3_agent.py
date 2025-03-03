@@ -24,7 +24,7 @@ class SB3Agent(BaseAgent):
         if env:
             self.instance = self.base(**params["kwargs"], env=env)
 
-    def learn(self, env, total_timesteps):
+    def learn(self, total_timesteps=1):
         print(f"Training {self.__class__.__name__} agent for {total_timesteps} timesteps...")
         self.instance.learn(total_timesteps)
 

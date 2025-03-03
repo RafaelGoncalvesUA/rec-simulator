@@ -3,10 +3,12 @@ from kserve import Model, ModelServer
 from sb3_agent import SB3Agent
 from minio import Minio
 from datetime import datetime
+from dotenv import load_dotenv
 import json
 import os
 
 MAX_BATCH_SIZE = 10
+load_dotenv(dotenv_path="/app/.env")
 
 class AgentService(Model):
     def __init__(self, name: str):
@@ -15,11 +17,18 @@ class AgentService(Model):
         self.load()
         self.buffer = []
         self.ctr = 0
+        self.minio_client = None
 
     def load(self):
-        # TODO: retrieve latest model from MINIO
-        self.minio_client = ...
-        
+        if not self.minio_client:
+            self.minio_client = Minio(
+                endpoint=os.getenv("MINIO_ENDPOINT"),
+                access_key=os.getenv("MINIO_ACCESS_KEY"),
+                secret_key=os.getenv("MINIO_SECRET_KEY"),
+                secure=False,
+            )
+
+        self.minio_client.fget_object(os.getenv("MINIO_AGENTS_BUCKET"), "agent.zip", "agent.zip")
         self.agent = SB3Agent.load("PPO", "agent.zip")
         self.ready = True
 
@@ -48,7 +57,7 @@ class AgentService(Model):
             json.dump(self.buffer, f, indent=4)
 
         # Upload to MinIO
-        self.minio_client.fput_object("batches", filename, filename)
+        self.minio_client.fput_object(os.getenv("MINIO_BATCHES_BUCKET"), filename, filename)
         print(f"Uploaded {filename} to MinIO bucket 'batches'.")
 
         # Delete local file after upload

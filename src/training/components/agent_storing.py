@@ -3,9 +3,9 @@ from kfp.dsl import Input, Model
 
 @dsl.component(
     base_image="rafego16/pipeline-custom-image:latest",
-    packages_to_install=["minio"],
+    packages_to_install=["minio", "requests"],
 )
-def agent_storing(agent: Input[Model]):
+def agent_storing(agent: Input[Model], agent_id: int):
     from minio import Minio
     from dotenv import load_dotenv
     import os
@@ -26,8 +26,8 @@ def agent_storing(agent: Input[Model]):
     # upload the agent to the 'agents' bucket
     minio_client.fput_object(
         "agents",
-        agent.path.split("/")[-1],
-        f"{agent.path}.zip",
+        f"agent_{agent_id}.zip",
+        f"{agent.path}/agent.zip",
     )
 
     print(f"Agent {agent.path.split('/')[-1]} uploaded to MinIO.")

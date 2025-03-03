@@ -1,4 +1,4 @@
-kubectl create namespace minio
+kubectl create namespace minio > /dev/null 2>&1 # create ns if does not exist
 helm repo add bitnami https://charts.bitnami.com/bitnami
 helm install minio oci://registry-1.docker.io/bitnamicharts/minio -f values.yaml -n minio
 
