@@ -9,6 +9,7 @@ def agent_storing(agent: Input[Model], agent_id: int):
     from minio import Minio
     from dotenv import load_dotenv
     import os
+    import requests
 
     load_dotenv(dotenv_path="/app/.env")
 
@@ -32,4 +33,13 @@ def agent_storing(agent: Input[Model], agent_id: int):
 
     print(f"Agent {agent.path.split('/')[-1]} uploaded to MinIO.")
 
-    # TODO: notify inference service
+    # notify inference service
+    payload = {"agent_id": agent_id, "load": True}
+
+    response = requests.post(
+        os.getenv("SERVICE_BASE_URL") + "/v1/models/my-agent:predict",
+        json=payload,
+    )
+
+    assert response.status_code == 200, f"Failed to notify inference service: {response.text}"
+    print("Inference service updated with new agent.")

@@ -9,7 +9,7 @@ microgrid = load_env_from_dataset("../example/env_from_dataset/env.yaml")
 env = MicrogridEnv(microgrid, api_price_function)
 
 agent = SB3Agent("PPO", env)
-agent.learn(env, total_timesteps=TRAIN_ITERATIONS)
+agent.learn(total_timesteps=TRAIN_ITERATIONS)
 
 obs = env.reset()
 done = False

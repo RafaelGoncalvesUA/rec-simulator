@@ -1,3 +1,4 @@
 kserve
 minio
 python-dotenv
+kfp

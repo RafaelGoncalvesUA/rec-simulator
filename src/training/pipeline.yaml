@@ -1,6 +1,7 @@
 # PIPELINE DEFINITION
 # Name: agent-pipeline
 # Inputs:
+#    agent_id: int
 #    batch_file: str
 components:
   comp-agent-routine:
@@ -25,6 +26,9 @@ components:
           artifactType:
             schemaTitle: system.Model
             schemaVersion: 0.0.1
+      parameters:
+        agent_id:
+          parameterType: NUMBER_INTEGER
   comp-data-ingestion:
     executorLabel: exec-data-ingestion
     inputDefinitions:
@@ -114,17 +118,23 @@ deploymentSpec:
 
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
-          \ *\n\ndef agent_storing(agent: Input[Model]):\n    from minio import Minio\n\
-          \    from dotenv import load_dotenv\n    import os\n\n    load_dotenv(dotenv_path=\"\
-          /app/.env\")\n\n    minio_client = Minio(\n        endpoint=os.getenv(\"\
-          MINIO_ENDPOINT\"),\n        access_key=os.getenv(\"MINIO_ACCESS_KEY\"),\n\
-          \        secret_key=os.getenv(\"MINIO_SECRET_KEY\"),\n        secure=False,\n\
-          \    )\n\n    # create a new bucket called 'agents'\n    if not minio_client.bucket_exists(\"\
-          agents\"):\n        minio_client.make_bucket(\"agents\")\n\n    # upload\
-          \ the agent to the 'agents' bucket\n    minio_client.fput_object(\n    \
-          \    \"agents\",\n        agent.path.split(\"/\")[-1],\n        f\"{agent.path}/agent.zip\"\
+          \ *\n\ndef agent_storing(agent: Input[Model], agent_id: int):\n    from\
+          \ minio import Minio\n    from dotenv import load_dotenv\n    import os\n\
+          \    import requests\n\n    load_dotenv(dotenv_path=\"/app/.env\")\n\n \
+          \   minio_client = Minio(\n        endpoint=os.getenv(\"MINIO_ENDPOINT\"\
+          ),\n        access_key=os.getenv(\"MINIO_ACCESS_KEY\"),\n        secret_key=os.getenv(\"\
+          MINIO_SECRET_KEY\"),\n        secure=False,\n    )\n\n    # create a new\
+          \ bucket called 'agents'\n    if not minio_client.bucket_exists(\"agents\"\
+          ):\n        minio_client.make_bucket(\"agents\")\n\n    # upload the agent\
+          \ to the 'agents' bucket\n    minio_client.fput_object(\n        \"agents\"\
+          ,\n        f\"agent_{agent_id}.zip\",\n        f\"{agent.path}/agent.zip\"\
           ,\n    )\n\n    print(f\"Agent {agent.path.split('/')[-1]} uploaded to MinIO.\"\
-          )\n\n    # TODO: notify inference service\n\n"
+          )\n\n    # notify inference service\n    payload = {\"agent_id\": agent_id,\
+          \ \"load\": True}\n\n    response = requests.post(\n        os.getenv(\"\
+          SERVICE_BASE_URL\") + \"/v1/models/my-agent:predict\",\n        json=payload,\n\
+          \    )\n\n    assert response.status_code == 200, f\"Failed to notify inference\
+          \ service: {response.text}\"\n    print(\"Inference service updated with\
+          \ new agent.\")\n\n"
         image: rafego16/pipeline-custom-image:latest
     exec-data-ingestion:
       container:
@@ -257,6 +267,9 @@ root:
               taskOutputArtifact:
                 outputArtifactKey: agent
                 producerTask: agent-routine
+          parameters:
+            agent_id:
+              componentInputParameter: agent_id
         taskInfo:
           name: agent-storing
       data-ingestion:
@@ -287,6 +300,8 @@ root:
           name: data-preparation
   inputDefinitions:
     parameters:
+      agent_id:
+        parameterType: NUMBER_INTEGER
       batch_file:
         parameterType: STRING
 schemaVersion: 2.1.0
