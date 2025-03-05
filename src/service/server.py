@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 import json
 import os
 
-from sb3_agent import SB3Agent
+from agent.sb3_agent import SB3Agent
 from kfp_client_manager import KFPClientManager
 
 MAX_BATCH_SIZE = 10

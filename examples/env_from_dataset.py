@@ -36,13 +36,13 @@ renewables = []
 
 config = yaml.safe_load(open(args.config, 'r'))
 
-for module in ['grid', 'loads', 'renewables']:
+for module in ['grids', 'loads', 'renewables']:
     if os.path.exists(os.path.join(args.dataset, module)):
 
         for filename in os.listdir(os.path.join(args.dataset, module)):
             ts = pd.read_csv(os.path.join(args.dataset, module, filename), index_col=0)
 
-            if module == 'grid':
+            if module == 'grids':
                 grids.append(
                     GridModule(
                         max_export=config['max_export'],
@@ -51,7 +51,7 @@ for module in ['grid', 'loads', 'renewables']:
                     )
                 )
 
-            if module == 'loads':
+            elif module == 'loads':
                 loads.append(
                     LoadModule(time_series=ts)
                 )

@@ -1,12 +1,13 @@
 echo "===Reorganising directory and building the agent server image..."
-cp ../utils/*.py .
-cp ../agent/*.py .
+cp ../utils/ .
+mkdir agent && cp ../agent/ agent/
 cp ../training/pipeline.yaml .
 docker build -t rafego16/rl-agent-server:latest .
 docker push rafego16/rl-agent-server:latest
 
 echo "===Restoring directory structure..."
 rm pipeline.yaml
+rm -r agent
 mv server.py server && rm *.py && mv server server.py
 
 echo "===Applying the inference and data collection service..."

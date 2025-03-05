@@ -84,9 +84,9 @@ deploymentSpec:
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
           \ *\n\ndef agent_routine(env: Input[Artifact], agent: Output[Model]):\n\
-          \    from load_env import load_env_from_dataset\n    from custom_env import\
+          \    from env_loader import env_loader_from_yaml\n    from microgrid_env import\
           \ MicrogridEnv, api_price_function\n    from sb3_agent import SB3Agent\n\
-          \n    microgrid = load_env_from_dataset(f\"{env.path}/env.yaml\")\n    environment\
+          \n    microgrid = env_loader_from_yaml(f\"{env.path}/env.yaml\")\n    environment\
           \ = MicrogridEnv(microgrid, api_price_function)\n\n    agent_instance =\
           \ SB3Agent(\"PPO\", environment)\n    agent_instance.learn(1)\n\n    agent_instance.save(f\"\
           {agent.path}/agent.zip\")\n\n"
