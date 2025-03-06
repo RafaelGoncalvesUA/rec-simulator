@@ -27,7 +27,7 @@ def load_from_dataset(dataset_dir, config_path, battery_path, idx=None, extensio
 
             if module == 'grids':
                 grids.append(
-                    pymgrid.modules.GridModule(
+                    GridModule(
                         max_export=config['max_export'],
                         max_import=config['max_import'],
                         time_series=ts,
@@ -36,14 +36,14 @@ def load_from_dataset(dataset_dir, config_path, battery_path, idx=None, extensio
 
             elif module == 'loads':
                 loads.append(
-                    pymgrid.modules.LoadModule(time_series=ts)
+                    LoadModule(time_series=ts)
                 )
 
             elif module == 'renewables':
                 src_type = filename.split('_')[0]
 
                 renewables.append(
-                    (src_type, pymgrid.modules.RenewableModule(time_series=ts))
+                    (src_type, RenewableModule(time_series=ts))
                 )
         
     batteries = [

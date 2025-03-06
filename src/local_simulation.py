@@ -1,11 +1,15 @@
-from utils.env_loader import *
-from utils.microgrid_env import *
+from utils.env_loader import load_from_dataset, env_loader_from_yaml
+from utils.microgrid_env import CustomMicrogridEnv
 from agent.sb3_agent import SB3Agent
 import random
 import os
 from itertools import product
 from tqdm import tqdm
 
+import warnings
+
+warnings.filterwarnings("ignore")
+  
 
 def run_simulation(config):
     microgrid = load_from_dataset(
@@ -19,10 +23,10 @@ def run_simulation(config):
         },
     )
 
-    env = MicrogridEnv(microgrid, api_price_function)
+    env = CustomMicrogridEnv.from_microgrid(microgrid)
 
     agent = SB3Agent(config["agent"], env, config["policy"], verbose=0)
-    agent.learn(total_timesteps=config["train_iterations"])
+    agent.learn(total_timesteps=config["train_episodes"])
 
     obs = env.reset()
     done = False
@@ -31,14 +35,17 @@ def run_simulation(config):
     custom_rewards = []
 
     print("Running simulation...")
-    for ep in tqdm(range(config["test_iterations"]), desc="Episodes"):
-        # action, _ = agent.predict(obs, deterministic=True)
-        action = [0]
+    for _ in tqdm(range(config["test_steps"]), desc="Steps"):
+        action, _ = agent.predict(obs, deterministic=True)
+        # action = env.action_space.sample()
         obs, reward, done, info = env.step(action)
         custom_rewards.append(reward)
         total_reward += reward
 
-    return microgrid, total_reward, custom_rewards, agent
+    print(env.state_dict(normalized=False))
+    print(env.state_dict(normalized=True))
+
+    return env, microgrid, total_reward, custom_rewards, agent
 
 
 AVAILABLE_MICROGRIDS = len(os.listdir("data/grid")) # 76
@@ -75,8 +82,8 @@ config_space = {
     # agent config
     "agent": ["PPO"],
     "policy": ["custom_policy1"],
-    "train_iterations": [100],
-    "test_iterations": [3],
+    "train_episodes": [1],
+    "test_steps": [1],
 }
 
 vals = [dict(zip(config_space.keys(), val)) for val in product(*config_space.values())]
@@ -92,9 +99,9 @@ for i, config in enumerate(vals):
     print(f"====== Configuration {i + 1}/{len(vals)} ======")
     print(config)
 
-    microgrid, total_reward, custom_rewards, agent = run_simulation(config)
+    env, microgrid, total_reward, custom_rewards, agent = run_simulation(config)
 
-    df = microgrid.get_log(drop_singleton_key=True, as_frame=True)
+    df = env.get_log(drop_singleton_key=True, as_frame=True)
     df["custom_reward"] = custom_rewards
     df.to_csv(f"logs/log_{i}.csv")
 
@@ -106,7 +113,7 @@ for i, config in enumerate(vals):
     print(f"Total reward: {total_reward:.2f}\n")
 
 # ----------------- print best performers -----------------
-print("\n====== Best performer(s) ======")
+print("\====== Best performer(s) ======")
 for idx in best_performers:
     print("--->", vals[i])
 print(f"Best reward: {best_reward:.2f}")
