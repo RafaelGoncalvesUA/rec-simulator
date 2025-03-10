@@ -1,0 +1,9 @@
+# large capacity, lower efficiency, and slower charging rate
+large_battery:
+  min_capacity: 10
+  max_capacity: 1000
+  max_charge: 10
+  max_discharge: 10
+  efficiency: 0.7
+  init_soc: 0.2
+  init_charge: null
