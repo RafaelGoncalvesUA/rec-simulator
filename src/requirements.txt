@@ -1,0 +1,6 @@
+# SIMULATION
+python-microgrid @ git+https://github.com/ahalev/python-microgrid@09089ccfaab3e95becfda1b26fbce6f9c6195f6a
+numpy
+gym
+stable_baselines3
+shimmy # necessary to use the gymnasium

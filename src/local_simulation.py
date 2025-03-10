@@ -15,6 +15,7 @@ import warnings
 warnings.filterwarnings("ignore")
   
 
+# ----------------- simulation function -----------------
 def run_simulation(config):
     microgrid = load_from_dataset(
         "data",
