@@ -3,7 +3,7 @@ import os
 import json
 
 AVAILABLE_MICROGRIDS = len(os.listdir("grid")) # 76
-NUM_MICROGRIDS = 1
+NUM_MICROGRIDS = 15
 
 
 def generate_microgrid_samples(num_microgrids, force_group_size=None, seed=42):
