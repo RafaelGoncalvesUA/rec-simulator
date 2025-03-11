@@ -9,7 +9,7 @@
 #SBATCH --time=7-00:00:00           # Limite de tempo para execução
 #SBATCH --partition=gpuPartition    # Partição padrão (ajustar conforme necessário)
 
-SCRIPT_NAME="local_simulation.py"
+SCRIPT_NAME="benchmark.py"
 
 source ../venv/bin/activate # virtual env should be created in the root directory
 srun python ${SCRIPT_NAME}

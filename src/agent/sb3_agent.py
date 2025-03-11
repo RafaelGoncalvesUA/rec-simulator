@@ -26,7 +26,7 @@ class SB3Agent(BaseAgent):
 
     def learn(self, total_timesteps=1):
         print(f"Training {self.__class__.__name__} agent for {total_timesteps} timesteps...")
-        self.instance.learn(total_timesteps)
+        self.instance.learn(total_timesteps, log_interval=1)
 
     def predict(self, obs, deterministic=True):
         return self.instance.predict(obs, deterministic=deterministic)
