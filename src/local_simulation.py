@@ -1,4 +1,4 @@
-from utils.env_loader import load_from_dataset, env_loader_from_yaml
+from utils.env_loader import load_from_dataset
 from utils.microgrid_env import CustomMicrogridEnv
 
 from agent.sb3_agent import SB3Agent
@@ -63,21 +63,21 @@ config_space = {
     
     # agent config
     "agent": [
-        # (RandomAgent, None),
+        (RandomAgent, None),
         (SB3Agent, "PPO"),
-        # (SB3Agent, "DQN"),
-        # (SB3Agent, "A2C"),
+        (SB3Agent, "DQN"),
+        (SB3Agent, "A2C"),
     ],
     "policy_act": [
         nn.ReLU,
-        # nn.Tanh
+        nn.Tanh
     ],
     "policy_net_arch": [
-        {"pi": [32, 32], "vf": [32, 32]},       # narrow
-        # {"pi": [64, 64], "vf": [64, 64]},     # default
+        {"pi": [32, 32], "vf": [32, 32]},      # narrow
+        {"pi": [64, 64], "vf": [64, 64]},     # default
         # {"pi": [32, 32], "vf": [64, 64]},     # narrow pi (obs to action)
         # {"pi": [64, 64], "vf": [32, 32]},     # narrow vf (obs to value)
-        # {"pi": [128, 128], "vf": [128, 128]}, # wide
+        {"pi": [128, 128], "vf": [128, 128]}, # wide
         # {"pi": [128, 128], "vf": [64, 64]},   # wide pi (obs to action)
         # {"pi": [64, 64], "vf": [128, 128]},   # wide vf (obs to value)
     ],
@@ -86,9 +86,15 @@ config_space = {
     "test_steps": [1],
 }
 
-vals = [dict(zip(config_space.keys(), val)) for val in product(*config_space.values())]
-print("Starting benchmark...")
+vals = [
+    val for val in [dict(zip(config_space.keys(), val)) for val in product(*config_space.values())]
+    
+    # no need to variate the policy_act and policy_net_arch for RandomAgent
+    if val["agent"][0] != RandomAgent or \
+    (val["policy_act"] == config_space["policy_act"][0] and val["policy_net_arch"] == config_space["policy_net_arch"][0])
+]
 
+print(f"Starting benchmark with {len(vals)} configurations...")
 
 # ----------------- main benchmark loop -----------------
 results = {}
