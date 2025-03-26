@@ -14,7 +14,6 @@ else:
 
 # TODO: accept battery json and config json
 # TODO: config file should have the number of grids, loads and renewables
-# TODO: dsl.ParallelFor (hyperparameter tuning)
 @dsl.pipeline
 def agent_pipeline(agent_id: int, batch_file: str):
     ingested_data = data_ingestion(batch_file=batch_file)

@@ -1,9 +1,8 @@
 from abc import ABC, abstractmethod
-from gym import Env
 
 class BaseAgent(ABC):
     @abstractmethod
-    def learn(self, env: Env, total_timesteps: int):
+    def learn(self, total_timesteps: int):
         pass
 
     @abstractmethod

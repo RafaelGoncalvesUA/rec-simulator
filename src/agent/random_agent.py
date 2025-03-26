@@ -1,11 +1,11 @@
 from agent.base_agent import BaseAgent
 
 class RandomAgent(BaseAgent):
-    def __init__(self, base, env, policy=None, verbose=0):
+    def __init__(self, base, env, policy=None, extra_args=None):
         if env:
             RandomAgent.env = env # store as class attribute to reuse in new loaded instances
 
-    def learn(self, total_timesteps=1):
+    def learn(self, total_timesteps=1, callback=None):
         print("Skipping learning for RandomAgent...")
         pass
 

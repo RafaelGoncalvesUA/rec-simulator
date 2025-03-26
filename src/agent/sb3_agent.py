@@ -1,6 +1,11 @@
 from agent.base_agent import BaseAgent
+from gym import Env
+from stable_baselines3.common.monitor import Monitor
 from stable_baselines3 import PPO, DQN, A2C
 # from sb3_contrib import QRDQN, RecurrentPPO, ARS, TRPO
+import os
+
+from agent._save_callback import SaveOnBestTrainingRewardCallback # TODO: remove
 
 class SB3Agent(BaseAgent):
     # Supported agents for discrete action space
@@ -14,19 +19,50 @@ class SB3Agent(BaseAgent):
         # "ARS": ARS
     }
 
-    def __init__(self, base, env, policy=None, verbose=2):
+    custom_default_args = {
+        "PPO": {
+            "train_freq": 1,
+        },
+        "DQN": {
+            "train_freq": 1,
+            "buffer_size": 50000,
+            "learning_starts": 1000,
+            "exploration_final_eps": 0.02,
+            "exploration_fraction": 0.25,
+        },
+        "A2C": {
+            "train_freq": 1,
+        }
+    }
+
+    def __init__(self, base: str, env: Env, policy: dict = {}, extra_args: dict = {}):
         if base not in self.supported_agents:
             raise ValueError(f"Unsupported agent: {base}")
 
-        self.base = self.supported_agents[base]
-        self.env = env
+        self.base_name = base
+        self.base = self.supported_agents[self.base_name]
+
+        os.makedirs("agent/models", exist_ok=True)
+        os.makedirs(f"agent/models/{self.base_name}", exist_ok=True)
 
         if env:
-            self.instance = self.base(env=env, verbose=verbose, policy="MlpPolicy", policy_kwargs=policy)
+            self.env = Monitor(env, f"agent/models/{self.base_name}/monitor.csv")
 
-    def learn(self, total_timesteps=1):
+            self.instance = self.base(
+                "MlpPolicy",
+                self.env,
+                policy_kwargs=policy,
+                **self.custom_default_args[base],
+                **extra_args,
+            )
+
+    def learn(self, total_timesteps=1, callback=None):
+        if not self.env:
+            raise ValueError("Environment not set for agent to learn")
+
         print(f"Training {self.__class__.__name__} agent for {total_timesteps} timesteps...")
-        self.instance.learn(total_timesteps, log_interval=1)
+        callback_ = SaveOnBestTrainingRewardCallback(check_freq=6000, log_dir=f"agent/models/{self.base_name}") # TODO: remove
+        self.instance.learn(total_timesteps, callback=callback_)
 
     def predict(self, obs, deterministic=True):
         return self.instance.predict(obs, deterministic=deterministic)

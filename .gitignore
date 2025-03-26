@@ -1,8 +1,11 @@
+# simulator package
+pymgrid/
+
 # Drafts, temp files
 tmp/
 **.pkl
 *.zip
-
+logs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

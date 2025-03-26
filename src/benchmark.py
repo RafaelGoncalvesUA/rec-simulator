@@ -5,48 +5,48 @@ from torch import nn
 
 import os
 import pandas as pd
-import json
 from itertools import product
+
+from pymgrid import MicrogridGenerator as mgen
 
 import warnings
 
 warnings.filterwarnings("ignore")
 
+os.system("rm -rf logs")
+os.system("rm -rf agent/models")
+os.system("rm agent.zip")
+
 # ----------------- config space -----------------
-# load microgrid samples
-with open("data/microgrid_samples.json", "r") as f:
-    samples = json.load(f)
+generator = mgen.MicrogridGenerator(nb_microgrid=10)
+generator.generate_microgrid()
+microgrids = generator.microgrids
+
+samples = [microgrids[9]] + microgrids[1:5] + [microgrids[6]]
 
 config_space = {
-    # env config
-    "microgrid": samples[:-5],
-    "test_set": [samples[-5:]], # set of microgrids for testing
-    "battery": [f"data/battery/comb/{fname}" for fname in os.listdir('data/battery/comb')],
-    "microgrid_config": ["data/config.yaml"],
+    "microgrid": [samples[0]],
     
-    # agent config
     "agent": [
-        (RandomAgent, None),
-        (SB3Agent, "PPO"),
         (SB3Agent, "DQN"),
-        (SB3Agent, "A2C"),
+        # (SB3Agent, "A2C"),
+        # (SB3Agent, "PPO"),
+        (RandomAgent, None),
     ],
     "policy_act": [
         nn.ReLU,
-        nn.Tanh,
+        # nn.Tanh,
     ],
     "policy_net_arch": [
-        {"pi": [32, 32], "vf": [32, 32]},      # narrow
-        {"pi": [64, 64], "vf": [64, 64]},     # default
-        # {"pi": [32, 32], "vf": [64, 64]},     # narrow pi (obs to action)
-        # {"pi": [64, 64], "vf": [32, 32]},     # narrow vf (obs to value)
-        {"pi": [128, 128], "vf": [128, 128]}, # wide
-        # {"pi": [128, 128], "vf": [64, 64]},   # wide pi (obs to action)
-        # {"pi": [64, 64], "vf": [128, 128]},   # wide vf (obs to value)
+        # [32, 32],   # narrower
+        [64, 64],   # default
+        # [128, 128], # wider
     ],
+    "learning_rate": [5e-4],
+    "batch_size": [32],
 
-    "train_steps": [8760], # 1 year (hourly intervals)
-    "test_steps": [8760 // 4], # 3 months (hourly intervals)
+    "train_steps": [100000],
+    "train_test_split": [0.7],
 }
 
 vals = [
@@ -61,55 +61,50 @@ print(f"Starting benchmark with {len(vals)} configurations...")
 
 # ----------------- config serialisation -----------------
 def serialise_config(config):
-    return pd.DataFrame(
-        {
-            "microgrid": [config["microgrid"]],
-            "test_set": [config["test_set"]],
-            "battery": [config["battery"]],
-            "microgrid_config": [config["microgrid_config"]],
-            "agent": [f"{config['agent'][0].__name__} {config['agent'][1]}"],
-            "policy_act": [config["policy_act"].__name__],
-            "policy_net_arch": [config["policy_net_arch"]],
-            "train_steps": [config["train_steps"]],
-            "test_steps": [config["test_steps"]],
-        }
-    )
-
+    return {
+        "microgrid": config["microgrid"],
+        "agent": f"{config['agent'][0].__name__} {config['agent'][1]}",
+        "policy_act": config["policy_act"].__name__,
+        "policy_net_arch": config["policy_net_arch"],
+        "train_steps": config["train_steps"],
+        "train_test_split": config["train_test_split"],
+    }
 
 # ----------------- main benchmark loop -----------------
 best_performers = set()
-best_reward = -float("inf")
+lowest_cost = float("inf")
 
 for i, config in enumerate(vals):
     print(f"====== Configuration {i + 1}/{len(vals)} ======")
     print(config)
 
-    env, microgrid, total_reward, reward_hist, agent = run_simulation(config)
+    agent, total_cost = run_simulation(config, i)
 
-    microgrid_log = env.get_log(drop_singleton_key=True, as_frame=True)
-    microgrid_log.to_csv(f"logs/microgrid/log_{i}.csv")
+    agent_log = pd.DataFrame([{
+        "config_id": i,
+        "total_cost": total_cost,
+        "total_cost_format": f'{total_cost:.4e}',
+        **serialise_config(config),
+    }])
 
-    agent_log = pd.concat([serialise_config(config), reward_hist], axis=1)
+    agent_log.to_csv(f"logs/benchmark_log.csv", index=False, mode="a", header=not os.path.exists("logs/benchmark_log.csv"))
 
-    agent_log.to_csv(f"logs/agent/log_{i}.csv", index=False)
-
-    if total_reward >= best_reward:
+    if total_cost <= lowest_cost:
         best_performers.add(i)
-        best_reward = total_reward
+        lowest_cost = total_cost
         agent.save("agent.zip")
 
-    print(f"Avg. total reward (test): {total_reward:.2f}\n")
+    print(f"Total cost: {total_cost:.4e}")
 
 # ----------------- print best performers -----------------
-print("\====== Best performer(s) ======")
+print("\n====== Best performer(s) ======")
 for idx in best_performers:
-    print("--->", vals[i])
-print(f"Best reward: {best_reward:.2f}")
-
+    print("--->", vals[idx])
+print(f"Lowest cost: {lowest_cost:.4e}")
 
 # ----------------- try to load and run best performer -----------------
 print("\n====== Running best performer for best config ======")
 best_config = vals[best_performers.pop()]
-agent_cls, agent_type = best_config["agent"]
-agent = agent_cls.load(agent_type, "agent.zip")
-run_simulation(best_config)
+base_class, agent_type = best_config["agent"]
+agent = base_class.load(agent_type, "agent.zip")
+run_simulation(best_config) # to ensure that it runs properly

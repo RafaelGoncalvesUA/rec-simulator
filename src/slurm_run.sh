@@ -11,5 +11,7 @@
 
 SCRIPT_NAME="benchmark.py"
 
-source ../venv/bin/activate # virtual env should be created in the root directory
+source ~/.bashrc
+conda init
+conda activate rec
 srun python ${SCRIPT_NAME}

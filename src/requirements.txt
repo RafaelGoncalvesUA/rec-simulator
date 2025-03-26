@@ -1,6 +1,30 @@
-# SIMULATION
-python-microgrid @ git+https://github.com/ahalev/python-microgrid@09089ccfaab3e95becfda1b26fbce6f9c6195f6a
-numpy
-gym
-stable_baselines3
-shimmy # necessary to use the gymnasium
+# === Python 3.7 ===
+# python-microgrid @ git+https://github.com/ahalev/python-microgrid@09089ccfaab3e95becfda1b26fbce6f9c6195f6a
+# pandas==1.0.0
+# numpy==1.18.1
+# gym==0.18.0
+# protobuf==3.20.1
+# cvxopt # convex optimization library (used by pymgrid)
+
+# === Python 3.9 ===
+pandas<2.0.0
+numpy<2.0.0
+# gym==0.21.0
+gym @ git+https://github.com/Pythoniasm/gym-fork.git@fix-v0.21.0
+protobuf
+cvxopt
+tqdm
+
+# Visualisation
+plotly
+kaleido
+
+# Optimisation
+ray[tune]
+
+# SB3
+stable-baselines3==1.0.0
+
+# SB2
+# stable-baselines==2.10.0
+# tensorflow==1.15.0
