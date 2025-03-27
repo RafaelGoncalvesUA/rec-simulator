@@ -1,5 +1,7 @@
 # simulator package
 pymgrid/
+agent/models/
+benchmark.txt
 
 # Drafts, temp files
 tmp/

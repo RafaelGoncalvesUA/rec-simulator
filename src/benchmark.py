@@ -13,9 +13,10 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-os.system("rm -rf logs")
-os.system("rm -rf agent/models")
-os.system("rm agent.zip")
+if os.path.exists("logs"):
+    os.system("rm -rf logs")
+    os.system("rm -rf agent/models")
+    os.system("rm agent.zip")
 
 # ----------------- config space -----------------
 generator = mgen.MicrogridGenerator(nb_microgrid=10)
@@ -29,21 +30,21 @@ config_space = {
     
     "agent": [
         (SB3Agent, "DQN"),
-        # (SB3Agent, "A2C"),
-        # (SB3Agent, "PPO"),
+        (SB3Agent, "A2C"),
+        (SB3Agent, "PPO"),
         (RandomAgent, None),
     ],
     "policy_act": [
         nn.ReLU,
-        # nn.Tanh,
+        nn.Tanh,
     ],
     "policy_net_arch": [
-        # [32, 32],   # narrower
+        [32, 32],   # narrower
         [64, 64],   # default
-        # [128, 128], # wider
+        [128, 128], # wider
     ],
-    "learning_rate": [5e-4],
-    "batch_size": [32],
+    "learning_rate": [1e-4, 5e-4, 1e-3, 5e-3, 1e-2], 
+    "batch_size": [32, 64, 128, 256],
 
     "train_steps": [100000],
     "train_test_split": [0.7],

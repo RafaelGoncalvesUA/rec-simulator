@@ -7,6 +7,7 @@
 # cvxopt # convex optimization library (used by pymgrid)
 
 # === Python 3.9 ===
+pymgrid @ git+https://github.com/RafaelGoncalvesUA/pymgrid
 pandas<2.0.0
 numpy<2.0.0
 # gym==0.21.0

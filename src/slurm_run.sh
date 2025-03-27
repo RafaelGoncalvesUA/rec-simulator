@@ -10,8 +10,4 @@
 #SBATCH --partition=gpuPartition    # Partição padrão (ajustar conforme necessário)
 
 SCRIPT_NAME="benchmark.py"
-
-source ~/.bashrc
-conda init
-conda activate rec
 srun python ${SCRIPT_NAME}
