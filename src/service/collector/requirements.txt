@@ -1,4 +1,4 @@
-pandas
-requests
+kserve
 python-dotenv
+kfp
 psycopg2-binary

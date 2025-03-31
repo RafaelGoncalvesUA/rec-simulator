@@ -1,10 +1,10 @@
 FROM pipeline-custom-image-builder:latest AS builder
-FROM python:3.11-slim
+FROM python:3.9-slim
 
 COPY --from=builder /root/.cargo/bin /root/.cargo/bin
 ENV PATH="/root/.cargo/bin:$PATH"
 
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
 
 WORKDIR /app
 COPY . .

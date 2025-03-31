@@ -12,8 +12,6 @@ if TEST:
 else:
     from kfp import compiler
 
-# TODO: accept battery json and config json
-# TODO: config file should have the number of grids, loads and renewables
 @dsl.pipeline
 def agent_pipeline(agent_id: int, batch_file: str):
     ingested_data = data_ingestion(batch_file=batch_file)

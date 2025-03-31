@@ -24,13 +24,18 @@ cd ../training
 python3 pipeline.py
 press_enter_to_continue
 
-echo "---> Deploying the inference and data collection service..."
+echo "---> Deploying the inference service..."
 cd ../service
 # bash run.sh
 press_enter_to_continue
 
+echo "---> Deploying the collector service..."
+cd collector
+# bash run.sh
+press_enter_to_continue
+
 echo "---> Deploying a producer script to generate data..."
-cd ../client
+cd ../../client
 # bash run.sh
 press_enter_to_continue
 

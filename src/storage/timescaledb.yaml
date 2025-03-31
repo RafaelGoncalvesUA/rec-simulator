@@ -1,0 +1,23 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: timescaledb
+  namespace: timescaledb
+spec:
+  instances: 2
+  imageName: ghcr.io/imusmanmalik/timescaledb-postgis:15-3.5-42
+  bootstrap:
+    initdb:
+      postInitTemplateSQL:
+        - CREATE EXTENSION timescaledb;
+        - CREATE EXTENSION postgis;
+        - CREATE EXTENSION postgis_topology;
+        - CREATE EXTENSION fuzzystrmatch;
+        - CREATE EXTENSION postgis_tiger_geocoder;
+
+  postgresql:
+    shared_preload_libraries:
+      - timescaledb
+  storage:
+    size: 5Gi
+

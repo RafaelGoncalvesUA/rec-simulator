@@ -1,46 +1,104 @@
-import pandas as pd
 import time
-import os
 from dotenv import load_dotenv
+from pymgrid import MicrogridGenerator as mgen
+from pymgrid.Environments.pymgrid_cspla import MicroGridEnv as CsDaMicroGridEnv
+from db import init_db
+import os
 import requests
 
-load_dotenv()
+load_dotenv(dotenv_path="/app/.env")
 
-print("Loading data...")
-base_path = os.getenv("DATA_BASE_PATH", "")
-grid1 = pd.read_csv(f"{base_path}grid/grid1.csv.gz", compression="gzip", index_col=0)
-grid1.columns = [f"g{col}" for col in grid1.columns]
+USER = os.getenv("DATABASE_USER")
+PASSWORD = os.getenv("DATABASE_PASSWORD")
+DATABASE = os.getenv("DATABASE_NAME")
+HOST = os.getenv("DATABASE_HOST")
+PORT = os.getenv("DATABASE_PORT")
+SERVICE_BASE_URL= os.getenv("SERVICE_BASE_URL")
+MAX_OBS_SIZE = int(os.getenv("MAX_OBS_SIZE"))
+AGENT_TYPE = os.getenv("AGENT_TYPE")
 
-load1 = pd.read_csv(f"{base_path}load/load1.csv.gz", compression="gzip", index_col=0)
-load1.columns = [f"l{col}" for col in load1.columns]
+print("Creating microgrids...")
+generator = mgen.MicrogridGenerator(nb_microgrid=10)
+generator.generate_microgrid()
+microgrids = generator.microgrids
 
-renewable1 = pd.read_csv(f"{base_path}renewable/renewable1.csv.gz", compression="gzip", index_col=0)
-renewable1.columns = [f"r{col}" for col in renewable1.columns]
+samples_ = [microgrids[9]] + microgrids[1:5] + [microgrids[6]]
+samples = [
+    CsDaMicroGridEnv({'microgrid': microgrid,
+                    'forecast_args': None,
+                    'resampling_on_reset': False,
+                    'baseline_sampling_args': None})
+    for microgrid in [samples_[4]]
+    # TODO: change to [microgrids[9]] + microgrids[1:5] + [microgrids[6]]
+]
 
-print("Data loaded successfully")
+conn, cursor = init_db(DATABASE, USER, PASSWORD, HOST, PORT, MAX_OBS_SIZE)
+obs = {}
+# actions = set()
 
-# produce messages
-ctr = 0
-for i in range(grid1.shape[0]):
-    print(f"{ctr} | Message sent")
+def produce_microgrid(tenant_id, env):
+    if tenant_id not in obs:
+        print(f"Microgrid {tenant_id} has started")
+        obs[tenant_id] = env.reset()
 
-    samples = []
+    if env.done:
+        env.close()
+        print(f"Microgrid {tenant_id} has finished")
+        return
 
-    for asset, _id in [(grid1, "grid1"), (load1, "load1"), (renewable1, "renewable1")]:
-        sample = asset.iloc[i].to_dict()
-        sample["id"] = _id
-        samples.append(sample)
+    # save the current obs in db
+    obs_def = f"INSERT INTO microgrid_data (tenant_id, "
+    obs_def += ", ".join([f"obs_{i}" for i in range(MAX_OBS_SIZE)])
+    obs_def += ") VALUES (%s, "
+    obs_def += ", ".join(["%s" for _ in range(MAX_OBS_SIZE)])
+    obs_def += ");"
 
-    # make a post request to the server
-    response = requests.post(
-        os.getenv("SERVICE_BASE_URL") + "/v1/models/my-agent:predict",
-        json=samples,
-    )
+    obs_values = [tenant_id] + \
+    [obs[tenant_id][i] if i < len(obs[tenant_id]) else None for i in range(MAX_OBS_SIZE)]
+
+    cursor.execute(obs_def, obs_values)
+    conn.commit()
+
+    # POST to get the action
+    body = {
+        "agent_id": tenant_id,
+        "agent_type": AGENT_TYPE,
+        "records": [obs[tenant_id].tolist()]
+    }
+    response = requests.post(f"{SERVICE_BASE_URL}/models/my-agent:predict", json=body).json()
+
+    if "action" not in response:
+        print(f"There is no action available for microgrid {tenant_id}") 
+        return
+
+    action = response["action"][0]
+    obs[tenant_id], reward, _, _ = env.step(action)
+
+    # if action not in actions:
+    #     actions.add(action)
+    #     print(f"(NEW) Microgrid {tenant_id} has taken action {action}")
+
+
+ctr = 1
+done_microgrid = 0
+
+for i, microgrid in enumerate(samples[:1]): # TODO: change to samples
+    init_body = {
+        "agent_id": i,
+        "agent_type": AGENT_TYPE,
+        "load": True
+    }
+    response = requests.post(f"{SERVICE_BASE_URL}/models/my-agent:predict", json=init_body).json()
+print("Loaded all agents.")
+
+while True:
+    for i, microgrid in enumerate(samples[:1]): # TODO: change to samples
+        produce_microgrid(i, microgrid)
+
+    time.sleep(0.1)
+
+    if ctr % 100 == 0:
+        print(f"Executed {ctr} iterations")
+        time.sleep(5)
 
     ctr += 1
-
-    time.sleep(3)
-
-    if ctr % 1000 == 0:
-        print(f"Sent {ctr} messages")
-        time.sleep(200)

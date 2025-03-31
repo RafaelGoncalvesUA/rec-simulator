@@ -69,6 +69,8 @@ def serialise_config(config):
         "policy_net_arch": config["policy_net_arch"],
         "train_steps": config["train_steps"],
         "train_test_split": config["train_test_split"],
+        "learning_rate": config["learning_rate"],
+        "batch_size": config["batch_size"],
     }
 
 # ----------------- main benchmark loop -----------------

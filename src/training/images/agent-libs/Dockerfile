@@ -3,22 +3,22 @@ FROM nvidia/cuda:11.8.0-base-ubuntu22.04
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
     build-essential \
-    python3.11 \
+    python3.9 \
     python3-pip && \
     apt clean && rm -rf /var/lib/apt/lists/
 
 COPY --from=base /root/.cargo/bin /root/.cargo/bin
 ENV PATH="/root/.cargo/bin:$PATH"
-COPY --from=base /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-ENV PYTHONPATH="/usr/local/lib/python3.11/site-packages:$PYTHONPATH"
-RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
-    ln -s /usr/bin/python3.11 /usr/bin/python
+COPY --from=base /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
+ENV PYTHONPATH="/usr/local/lib/python3.9/site-packages:$PYTHONPATH"
 
-RUN pip3 --no-cache-dir install torch --index-url https://download.pytorch.org/whl/cu118
-RUN pip3 --no-cache-dir install stable-baselines3 joblib
+# RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1 && \
+#     ln -s /usr/bin/python3.9 /usr/bin/python
 
-# extra layer (added after the first build)
-RUN pip3 install shimmy
+COPY requirements.txt .
+RUN apt-get update
+RUN apt-get install -y git
+RUN pip install --no-cache-dir -r requirements.txt
 
 WORKDIR /app
 COPY . .
