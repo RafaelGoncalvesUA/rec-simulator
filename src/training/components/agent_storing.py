@@ -3,9 +3,9 @@ from kfp.dsl import Input, Model
 
 @dsl.component(
     base_image="rafego16/pipeline-custom-image:latest",
-    packages_to_install=["minio", "requests"],
+    packages_to_install=["requests"],
 )
-def agent_storing(agent: Input[Model], agent_id: int):
+def agent_storing(agent_id: int, agent_type: str, agent: Input[Model]):
     from minio import Minio
     from dotenv import load_dotenv
     import os
@@ -34,7 +34,7 @@ def agent_storing(agent: Input[Model], agent_id: int):
     print(f"Agent {agent.path.split('/')[-1]} uploaded to MinIO.")
 
     # notify inference service
-    payload = {"agent_id": agent_id, "load": True}
+    payload = {"agent_id": agent_id, "agent_type": agent_type, "load": True}
 
     response = requests.post(
         os.getenv("SERVICE_BASE_URL") + "/v1/models/my-agent:predict",

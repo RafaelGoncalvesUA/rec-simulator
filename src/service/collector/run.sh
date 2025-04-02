@@ -2,8 +2,6 @@ echo "===Reorganising directory..."
 cp .env .env_bak
 cp ../../utils/kfp_client_manager.py .
 cp ../../utils/db.py .
-echo "DATABASE_HOST=timescaledb-r.timescaledb.svc.cluster.local" >> .env
-echo "DATABASE_PORT=5432" >> .env
 PGPOSTGRESPASSWORD=$(kubectl get secret timescaledb-app -n timescaledb -o jsonpath='{.data.password}' | base64 --decode)
 echo "DATABASE_PASSWORD=$PGPOSTGRESPASSWORD" >> .env
 

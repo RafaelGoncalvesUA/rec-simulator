@@ -3,15 +3,13 @@ from kfp.dsl import Input, Output, Artifact, Model
 
 
 @dsl.component(base_image="rafego16/pipeline-custom-image-train:latest")
-def agent_routine(env: Input[Artifact], agent: Output[Model]):
-    from env_loader import env_loader_from_yaml
-    from microgrid_env import MicrogridEnv, api_price_function
+def agent_routine(agent_type: str, env: Input[Artifact], agent: Output[Model]):
     from agent.sb3_agent import SB3Agent
+    import pickle as pkl
+    import os
 
-    microgrid = env_loader_from_yaml(f"{env.path}/env.yaml")
-    environment = MicrogridEnv(microgrid, api_price_function)
+    microgrid_env = pkl.load(open(os.path.join(env.path, 'env.pkl'), 'rb'))
+    agent = SB3Agent.load(agent_type, os.path.join(env.path, 'agent.zip'), microgrid_env)
 
-    agent_instance = SB3Agent("PPO", environment)
-    agent_instance.learn(1)
-
-    agent_instance.save(f"{agent.path}/agent.zip")
+    agent.learn(total_timesteps=os.getenv("TRAIN_STEPS"))
+    agent.save(os.path.join(agent.path, 'agent.zip'))

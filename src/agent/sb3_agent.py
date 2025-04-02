@@ -20,9 +20,7 @@ class SB3Agent(BaseAgent):
     }
 
     custom_default_args = {
-        "PPO": {
-            "train_freq": 1,
-        },
+        "PPO": {},
         "DQN": {
             "train_freq": 1,
             "buffer_size": 50000,
@@ -69,9 +67,14 @@ class SB3Agent(BaseAgent):
         print(f"Saving {self.base} agent to {path_str}...")
         self.instance.save(path_str)
 
-    def load(base, path_str):
-        print(f"Loading {base} agent from {path_str}...")
-        new_agent = SB3Agent(base, None)
-        base_cls = SB3Agent.supported_agents[base]
-        new_agent.instance = base_cls.load(path_str)
+    def load(base, path_str, env=None):
+        if env:
+            print(f"Loading {base} agent from {path_str} with a training environment...")
+            new_agent = SB3Agent(base, env)
+        else:
+            print(f"Loading {base} agent from {path_str} on inference mode...")
+            new_agent = SB3Agent(base, None)
+            base_cls = SB3Agent.supported_agents[base]
+            new_agent.instance = base_cls.load(path_str, env=env)
+
         return new_agent

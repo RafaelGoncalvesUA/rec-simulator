@@ -12,13 +12,21 @@ if TEST:
 else:
     from kfp import compiler
 
+
 @dsl.pipeline
-def agent_pipeline(agent_id: int, batch_file: str):
-    ingested_data = data_ingestion(batch_file=batch_file)
-    prepared_data = data_preparation(dataset_dir=ingested_data.outputs["dataset_dir"])
-    trained_agent = agent_routine(env=prepared_data.outputs["env"])
-    agent_storing(agent=trained_agent.outputs["agent"], agent_id=agent_id)
+def agent_pipeline(agent_id: int, agent_type: str, template_id: int):
+    ingested_data = data_ingestion(agent_id=agent_id)
+
+    prepared_data = data_preparation(
+        agent_type=agent_type,
+        template_id=template_id,
+        dataset_dir=ingested_data.outputs["dataset_dir"]
+    )
+    
+    trained_agent = agent_routine(agent_type=agent_type, env=prepared_data.outputs["env"])
+
+    agent_storing(agent_id=agent_id, agent_type=agent_type, agent=trained_agent.outputs["agent"])
 
 
-if TEST: agent_pipeline(batch_file="batch_20250207171510.json")
+if TEST: agent_pipeline(agent_id=0, microgrid_template_id=0)
 else: compiler.Compiler().compile(agent_pipeline, "pipeline.yaml")

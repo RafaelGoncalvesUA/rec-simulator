@@ -10,6 +10,8 @@ rm *.py
 
 echo "===Updating the default image with environment variables..."
 cd update-env
+PGPOSTGRESPASSWORD=$(kubectl get secret timescaledb-app -n timescaledb -o jsonpath='{.data.password}' | base64 --decode)
+echo "DATABASE_PASSWORD=$PGPOSTGRESPASSWORD" >> .env
 docker build -t rafego16/pipeline-custom-image:latest .
 docker push rafego16/pipeline-custom-image:latest
 

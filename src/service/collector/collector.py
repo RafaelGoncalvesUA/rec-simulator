@@ -14,11 +14,13 @@ PORT = os.getenv("DATABASE_PORT")
 MAX_OBS_SIZE = int(os.getenv("MAX_OBS_SIZE"))
 MAX_BUFFER_SIZE = int(os.getenv("MAX_BUFFER_SIZE"))
 VERIFICATION_INTERVAL = int(os.getenv("VERIFICATION_INTERVAL"))
+AGENT_TYPE = os.getenv("AGENT_TYPE")
+TRIGGER_COND = os.getenv("TRIGGER_COND")
 
 conn, cursor = get_db_conn(DATABASE, USER, PASSWORD, HOST, PORT, MAX_OBS_SIZE)
 
 
-def deploy_training_pipeline(tenant_id):
+def deploy_training_pipeline(tenant_id, agent_type):
     kfp_client_manager = KFPClientManager(
         api_url="http://localhost:8080/pipeline",
         dex_username="user@example.com",
@@ -33,12 +35,23 @@ def deploy_training_pipeline(tenant_id):
         pipeline_file="pipeline.yaml",
         namespace="kubeflow-user-example-com",
         arguments={
-            "tenant_id": tenant_id,
+            "agent_id": tenant_id,
+            "agent_type": agent_type,
+            "microgrid_template_id": tenant_id, # e.g. use template 0 for tenant 0 
         },
     )
 
 
-# verfify for all available tenants if one has surpassed the buffer size
+def trigger(cursor, tenant_id, cond):
+    if cond == "buffer_size":
+        cursor.execute(f"SELECT COUNT(*) FROM microgrid_data WHERE tenant_id = '{tenant_id}'")
+        count = cursor.fetchone()[0]
+        return count >= MAX_BUFFER_SIZE
+    else:
+        raise ValueError(f"Condition {cond} not available")
+
+
+# (for all available tenants) verfify if one has surpassed the buffer size
 while True:
     cursor.execute("SELECT tenant_id FROM microgrid_data")
     tenants = cursor.fetchall()
@@ -47,13 +60,8 @@ while True:
         tenant_id = int(tenant[0])
         print(f"Verifying tenant {tenant_id}")
 
-        cursor.execute(
-            f"SELECT COUNT(*) FROM microgrid_data WHERE tenant_id = '{tenant_id}'"
-        )
-        count = cursor.fetchone()[0]
-
-        if count >= MAX_BUFFER_SIZE:
+        if trigger(cursor, tenant_id, TRIGGER_COND):
             print(f"Deploying training pipeline for tenant {tenant_id}")
-            deploy_training_pipeline(tenant_id)
+            deploy_training_pipeline(tenant_id, AGENT_TYPE)
 
     time.sleep(VERIFICATION_INTERVAL)

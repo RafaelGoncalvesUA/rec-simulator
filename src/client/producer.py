@@ -36,6 +36,7 @@ conn, cursor = init_db(DATABASE, USER, PASSWORD, HOST, PORT, MAX_OBS_SIZE)
 obs = {}
 # actions = set()
 
+
 def produce_microgrid(tenant_id, env):
     if tenant_id not in obs:
         print(f"Microgrid {tenant_id} has started")

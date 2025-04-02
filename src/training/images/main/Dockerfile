@@ -9,7 +9,7 @@ COPY --from=builder /usr/local/lib/python3.9/site-packages /usr/local/lib/python
 WORKDIR /app
 COPY . .
 
-RUN python3 -m pip install python-dotenv
+RUN python3 -m pip install python-dotenv minio psycopg2-binary
 
 # docker build -t rafego16/pipeline-custom-image:latest .
 # docker push rafego16/pipeline-custom-image:latest
