@@ -1,4 +1,4 @@
-from agent.base_agent import BaseAgent
+from .base_agent import BaseAgent
 
 class RandomAgent(BaseAgent):
     def __init__(self, base, env, policy=None, extra_args=None):

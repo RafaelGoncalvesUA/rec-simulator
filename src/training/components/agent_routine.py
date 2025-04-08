@@ -4,7 +4,7 @@ from kfp.dsl import Input, Output, Artifact, Model
 
 @dsl.component(base_image="rafego16/pipeline-custom-image-train:latest")
 def agent_routine(agent_type: str, env: Input[Artifact], agent: Output[Model]):
-    from agent.sb3_agent import SB3Agent
+    from logic.agent.sb3_agent import SB3Agent
     import pickle as pkl
     import os
 

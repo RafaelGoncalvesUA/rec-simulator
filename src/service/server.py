@@ -5,7 +5,7 @@ from minio.error import S3Error
 from dotenv import load_dotenv
 import os
 
-from agent.sb3_agent import SB3Agent
+from logic.agent.sb3_agent import SB3Agent
 load_dotenv(dotenv_path="/app/.env")
 
 

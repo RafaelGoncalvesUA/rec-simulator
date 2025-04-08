@@ -95,7 +95,7 @@ deploymentSpec:
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
           \ *\n\ndef agent_routine(agent_type: str, env: Input[Artifact], agent: Output[Model]):\n\
-          \    from agent.sb3_agent import SB3Agent\n    import pickle as pkl\n  \
+          \    from logic.agent.sb3_agent import SB3Agent\n    import pickle as pkl\n  \
           \  import os\n\n    microgrid_env = pkl.load(open(os.path.join(env.path,\
           \ 'env.pkl'), 'rb'))\n    agent = SB3Agent.load(agent_type, os.path.join(env.path,\
           \ 'agent.zip'), microgrid_env)\n\n    agent.learn(total_timesteps=os.getenv(\"\
@@ -233,7 +233,7 @@ deploymentSpec:
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
           \ *\n\ndef data_preparation(agent_type: str, template_id: int, dataset_dir:\
           \ Input[Artifact], env: Output[Artifact]):\n    import os\n    import pickle\
-          \ as pkl\n    import pandas as pd\n    from agent.sb3_agent import SB3Agent\n\
+          \ as pkl\n    import pandas as pd\n    from logic.agent.sb3_agent import SB3Agent\n\
           \    from microgrid_template import get_microgrid_template, microgrid_from_template\n\
           \n    template = get_microgrid_template(template_id)\n\n    records = pd.read_csv(os.path.join(dataset_dir.path,\
           \ 'batch.csv'))\n    n_records = records.shape[0]\n\n    new_parameters\

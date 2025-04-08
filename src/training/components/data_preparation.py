@@ -7,7 +7,7 @@ def data_preparation(agent_type: str, template_id: int, dataset_dir: Input[Artif
     import os
     import pickle as pkl
     import pandas as pd
-    from agent.sb3_agent import SB3Agent
+    from logic.agent.sb3_agent import SB3Agent
     from microgrid_template import get_microgrid_template, microgrid_from_template
 
     template = get_microgrid_template(template_id)

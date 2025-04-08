@@ -1,11 +1,11 @@
-from agent.base_agent import BaseAgent
+from .base_agent import BaseAgent
 from gym import Env
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3 import PPO, DQN, A2C
 # from sb3_contrib import QRDQN, RecurrentPPO, ARS, TRPO
 import os
 
-from agent._save_callback import SaveOnBestTrainingRewardCallback # TODO: remove
+from logic.agent._save_callback import SaveOnBestTrainingRewardCallback # TODO: remove
 
 class SB3Agent(BaseAgent):
     # Supported agents for discrete action space

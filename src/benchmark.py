@@ -1,5 +1,5 @@
-from agent.sb3_agent import SB3Agent
-from agent.random_agent import RandomAgent
+from logic.agent.sb3_agent import SB3Agent
+from logic.agent.random_agent import RandomAgent
 from utils.simulation import run_simulation
 from torch import nn
 

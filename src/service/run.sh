@@ -1,6 +1,6 @@
 echo "===Reorganising directory and building the agent server image..."
 cp ../utils/ .
-mkdir agent && cp ../agent/ agent/
+mkdir agent && cp ../logic/agent/ agent/
 cp ../training/pipeline.yaml .
 docker build -t rafego16/rl-agent-server:latest .
 docker push rafego16/rl-agent-server:latest

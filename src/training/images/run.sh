@@ -20,7 +20,7 @@ docker push rafego16/pipeline-custom-image:latest
 cd ../../agent-libs
 cp ../../../utils/*.py .
 cp ../../../requirements.txt .
-mkdir agent && cp -r ../../../agent/* agent/
+mkdir agent && cp -r ../../../logic/agent/* agent/
 echo "===Building a training image for Kubeflow pipeline..."
 docker build -t rafego16/pipeline-custom-image-train:latest .
 rm *.py && rm -r agent

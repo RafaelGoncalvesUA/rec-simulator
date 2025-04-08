@@ -101,3 +101,23 @@ class CustomEnv(BaseEnvironment):
         self.round += 1
 
         return self.state, self.reward, self.done, self.info
+
+    def run_step(self, control_dict):
+        if self.mg._data_set_to_use == "testing":
+            next_timestamp = self.mg._tracking_timestep + 1
+            self.mg._grid_price_import_train.iloc[next_timestamp,0] = 1.0
+            self.mg._grid_price_export_train.iloc[next_timestamp,0] = 1.0
+
+            self.mg._grid_price_import_train.iloc[next_timestamp +1, 0] = 2.0
+            self.mg._grid_price_export_train.iloc[next_timestamp +1, 0] = 2.0
+
+        # UPDATE THE MICROGRID
+        self.mg.run(control_dict)
+
+        # COMPUTE NEW STATE AND REWARD
+        self.state, self.info = self.transition(reset=False)
+        self.reward = self.get_reward()
+        self.done = self.mg.done
+        self.round += 1
+
+        return self.state, self.reward, self.done, self.info
