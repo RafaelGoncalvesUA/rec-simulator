@@ -3,14 +3,31 @@ from kfp.dsl import Input, Output, Artifact
 
 
 @dsl.component(base_image="rafego16/pipeline-custom-image-train:latest")
-def data_preparation(agent_type: str, microgrid_template_id: int, dataset_dir: Input[Artifact], env: Output[Artifact]):
+def data_preparation(agent_type: str, template_id: int, dataset_dir: Input[Artifact], env: Output[Artifact]):
     import os
     import pickle as pkl
+    import pandas as pd
     from agent.sb3_agent import SB3Agent
     from microgrid_template import get_microgrid_template, microgrid_from_template
 
-    template = get_microgrid_template(microgrid_template_id)
-    _, microgrid_env = microgrid_from_template(template)
+    template = get_microgrid_template(template_id)
+
+    records = pd.read_csv(os.path.join(dataset_dir.path, 'batch.csv'))
+    n_records = records.shape[0]
+
+    new_parameters = {
+        "load": records["obs_0"].tolist(),
+        "pv": records["obs_1"].tolist(),
+        "last_soc": records["obs_2"].tolist()[-1],
+        "last_capa_to_charge": records["obs_3"].tolist()[-1],
+        "last_capa_to_discharge": records["obs_4"].tolist()[-1],
+        "grid_ts": records["obs_5"].tolist(),
+        "grid_co2": records["obs_6"].tolist(),
+        "grid_price_import": records["obs_7"].tolist(),
+        "grid_price_export": records["obs_8"].tolist(),
+    }
+
+    _, microgrid_env = microgrid_from_template(template, new_parameters)
 
     agent_path = os.path.join(dataset_dir.path, 'agent.zip')
     if os.path.exists(agent_path):

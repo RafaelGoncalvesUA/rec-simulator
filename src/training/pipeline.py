@@ -28,5 +28,5 @@ def agent_pipeline(agent_id: int, agent_type: str, template_id: int):
     agent_storing(agent_id=agent_id, agent_type=agent_type, agent=trained_agent.outputs["agent"])
 
 
-if TEST: agent_pipeline(agent_id=0, microgrid_template_id=0)
+if TEST: agent_pipeline(agent_id=0, template_id=0)
 else: compiler.Compiler().compile(agent_pipeline, "pipeline.yaml")

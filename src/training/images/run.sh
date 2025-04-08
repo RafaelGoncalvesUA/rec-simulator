@@ -10,15 +10,17 @@ rm *.py
 
 echo "===Updating the default image with environment variables..."
 cd update-env
+cp .env .env_bak
 PGPOSTGRESPASSWORD=$(kubectl get secret timescaledb-app -n timescaledb -o jsonpath='{.data.password}' | base64 --decode)
 echo "DATABASE_PASSWORD=$PGPOSTGRESPASSWORD" >> .env
+rm .env && mv .env_bak .env
 docker build -t rafego16/pipeline-custom-image:latest .
 docker push rafego16/pipeline-custom-image:latest
 
 cd ../../agent-libs
 cp ../../../utils/*.py .
 cp ../../../requirements.txt .
-mkdir agent && cp -r ../../../agent/ agent/
+mkdir agent && cp -r ../../../agent/* agent/
 echo "===Building a training image for Kubeflow pipeline..."
 docker build -t rafego16/pipeline-custom-image-train:latest .
 rm *.py && rm -r agent

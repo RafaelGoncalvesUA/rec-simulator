@@ -2,7 +2,8 @@
 # Name: agent-pipeline
 # Inputs:
 #    agent_id: int
-#    batch_file: str
+#    agent_type: str
+#    template_id: int
 components:
   comp-agent-routine:
     executorLabel: exec-agent-routine
@@ -12,6 +13,9 @@ components:
           artifactType:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
+      parameters:
+        agent_type:
+          parameterType: STRING
     outputDefinitions:
       artifacts:
         agent:
@@ -29,12 +33,14 @@ components:
       parameters:
         agent_id:
           parameterType: NUMBER_INTEGER
+        agent_type:
+          parameterType: STRING
   comp-data-ingestion:
     executorLabel: exec-data-ingestion
     inputDefinitions:
       parameters:
-        batch_file:
-          parameterType: STRING
+        agent_id:
+          parameterType: NUMBER_INTEGER
     outputDefinitions:
       artifacts:
         dataset_dir:
@@ -49,6 +55,11 @@ components:
           artifactType:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
+      parameters:
+        agent_type:
+          parameterType: STRING
+        template_id:
+          parameterType: NUMBER_INTEGER
     outputDefinitions:
       artifacts:
         env:
@@ -69,7 +80,7 @@ deploymentSpec:
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.11.0'\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
           $0\" \"$@\"\n"
         - sh
@@ -83,13 +94,13 @@ deploymentSpec:
 
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
-          \ *\n\ndef agent_routine(env: Input[Artifact], agent: Output[Model]):\n\
-          \    from env_loader import env_loader_from_yaml\n    from microgrid_env import\
-          \ MicrogridEnv, api_price_function\n    from sb3_agent import SB3Agent\n\
-          \n    microgrid = env_loader_from_yaml(f\"{env.path}/env.yaml\")\n    environment\
-          \ = MicrogridEnv(microgrid, api_price_function)\n\n    agent_instance =\
-          \ SB3Agent(\"PPO\", environment)\n    agent_instance.learn(1)\n\n    agent_instance.save(f\"\
-          {agent.path}/agent.zip\")\n\n"
+          \ *\n\ndef agent_routine(agent_type: str, env: Input[Artifact], agent: Output[Model]):\n\
+          \    from agent.sb3_agent import SB3Agent\n    import pickle as pkl\n  \
+          \  import os\n\n    microgrid_env = pkl.load(open(os.path.join(env.path,\
+          \ 'env.pkl'), 'rb'))\n    agent = SB3Agent.load(agent_type, os.path.join(env.path,\
+          \ 'agent.zip'), microgrid_env)\n\n    agent.learn(total_timesteps=os.getenv(\"\
+          TRAIN_STEPS\"))\n    agent.save(os.path.join(agent.path, 'agent.zip'))\n\
+          \n"
         image: rafego16/pipeline-custom-image-train:latest
     exec-agent-storing:
       container:
@@ -103,10 +114,10 @@ deploymentSpec:
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.11.0'\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
-          \  python3 -m pip install --quiet --no-warn-script-location 'minio' 'requests'\
-          \ && \"$0\" \"$@\"\n"
+          \  python3 -m pip install --quiet --no-warn-script-location 'requests' &&\
+          \ \"$0\" \"$@\"\n"
         - sh
         - -ec
         - 'program_path=$(mktemp -d)
@@ -118,10 +129,10 @@ deploymentSpec:
 
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
-          \ *\n\ndef agent_storing(agent: Input[Model], agent_id: int):\n    from\
-          \ minio import Minio\n    from dotenv import load_dotenv\n    import os\n\
-          \    import requests\n\n    load_dotenv(dotenv_path=\"/app/.env\")\n\n \
-          \   minio_client = Minio(\n        endpoint=os.getenv(\"MINIO_ENDPOINT\"\
+          \ *\n\ndef agent_storing(agent_id: int, agent_type: str, agent: Input[Model]):\n\
+          \    from minio import Minio\n    from dotenv import load_dotenv\n    import\
+          \ os\n    import requests\n\n    load_dotenv(dotenv_path=\"/app/.env\")\n\
+          \n    minio_client = Minio(\n        endpoint=os.getenv(\"MINIO_ENDPOINT\"\
           ),\n        access_key=os.getenv(\"MINIO_ACCESS_KEY\"),\n        secret_key=os.getenv(\"\
           MINIO_SECRET_KEY\"),\n        secure=False,\n    )\n\n    # create a new\
           \ bucket called 'agents'\n    if not minio_client.bucket_exists(\"agents\"\
@@ -130,11 +141,11 @@ deploymentSpec:
           ,\n        f\"agent_{agent_id}.zip\",\n        f\"{agent.path}/agent.zip\"\
           ,\n    )\n\n    print(f\"Agent {agent.path.split('/')[-1]} uploaded to MinIO.\"\
           )\n\n    # notify inference service\n    payload = {\"agent_id\": agent_id,\
-          \ \"load\": True}\n\n    response = requests.post(\n        os.getenv(\"\
-          SERVICE_BASE_URL\") + \"/v1/models/my-agent:predict\",\n        json=payload,\n\
-          \    )\n\n    assert response.status_code == 200, f\"Failed to notify inference\
-          \ service: {response.text}\"\n    print(\"Inference service updated with\
-          \ new agent.\")\n\n"
+          \ \"agent_type\": agent_type, \"load\": True}\n\n    response = requests.post(\n\
+          \        os.getenv(\"SERVICE_BASE_URL\") + \"/v1/models/my-agent:predict\"\
+          ,\n        json=payload,\n    )\n\n    assert response.status_code == 200,\
+          \ f\"Failed to notify inference service: {response.text}\"\n    print(\"\
+          Inference service updated with new agent.\")\n\n"
         image: rafego16/pipeline-custom-image:latest
     exec-data-ingestion:
       container:
@@ -148,54 +159,7 @@ deploymentSpec:
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.11.0'\
-          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
-          \  python3 -m pip install --quiet --no-warn-script-location 'minio' && \"\
-          $0\" \"$@\"\n"
-        - sh
-        - -ec
-        - 'program_path=$(mktemp -d)
-
-
-          printf "%s" "$0" > "$program_path/ephemeral_component.py"
-
-          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
-
-          '
-        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
-          \ *\n\ndef data_ingestion(batch_file: str, dataset_dir: Output[Artifact]):\n\
-          \    from minio import Minio\n    import pandas as pd\n    from dotenv import\
-          \ load_dotenv\n    import os\n\n    load_dotenv(dotenv_path=\"/app/.env\"\
-          )\n\n    minio_client = Minio(\n        endpoint=os.getenv(\"MINIO_ENDPOINT\"\
-          ),\n        access_key=os.getenv(\"MINIO_ACCESS_KEY\"),\n        secret_key=os.getenv(\"\
-          MINIO_SECRET_KEY\"),\n        secure=False,\n    )\n\n    # retrieve batch\
-          \ file from MinIO's specified bucket\n    minio_client.fget_object(os.getenv(\"\
-          MINIO_BUCKET\"), batch_file, \"batch.json\")\n\n    os.makedirs(f\"{dataset_dir.path}/grid\"\
-          , exist_ok=True)\n    os.makedirs(f\"{dataset_dir.path}/loads\", exist_ok=True)\n\
-          \    os.makedirs(f\"{dataset_dir.path}/renewables\", exist_ok=True)\n\n\
-          \    df = pd.read_json(\"batch.json\")\n    ids = df[\"id\"].unique()\n\n\
-          \    for module in ids:\n        if module.startswith(\"grid\"):\n     \
-          \       df[df[\"id\"] == module][[\"g0\", \"g1\", \"g2\", \"g3\"]].to_csv(\n\
-          \                f\"{dataset_dir.path}/grid/{module}.csv\"\n           \
-          \ )\n        elif module.startswith(\"load\"):\n            df[df[\"id\"\
-          ] == module][\"l0\"].to_csv(\n                f\"{dataset_dir.path}/loads/{module}.csv\"\
-          \n            )\n        elif module.startswith(\"renewable\"):\n      \
-          \      df[df[\"id\"] == module][\"r0\"].to_csv(\n                f\"{dataset_dir.path}/renewables/{module}.csv\"\
-          \n            )\n\n"
-        image: rafego16/pipeline-custom-image:latest
-    exec-data-preparation:
-      container:
-        args:
-        - --executor_input
-        - '{{$}}'
-        - --function_to_execute
-        - data_preparation
-        command:
-        - sh
-        - -c
-        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
-          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.11.0'\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
           $0\" \"$@\"\n"
         - sh
@@ -209,31 +173,86 @@ deploymentSpec:
 
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
-          \ *\n\ndef data_preparation(dataset_dir: Input[Artifact], env: Output[Artifact]):\n\
-          \    from pymgrid import Microgrid\n    from pymgrid.modules import BatteryModule,\
-          \ LoadModule, RenewableModule, GridModule\n    import yaml\n    import pandas\
-          \ as pd\n    import os\n\n    grids = []\n    loads = []\n    renewables\
-          \ = []\n\n    config = yaml.safe_load(open(\"config.yaml\", 'r'))\n\n  \
-          \  for module in ['grid', 'loads', 'renewables']:\n        if os.path.exists(os.path.join(dataset_dir.path,\
-          \ module)):\n            for filename in os.listdir(os.path.join(dataset_dir.path,\
-          \ module)):\n                ts = pd.read_csv(os.path.join(dataset_dir.path,\
-          \ module, filename), index_col=0)\n\n                if module == 'grid':\n\
-          \                    grids.append(\n                        GridModule(\n\
-          \                            max_export=config['max_export'],\n        \
-          \                    max_import=config['max_import'],\n                \
-          \            time_series=ts,\n                        )\n              \
-          \      )\n\n                if module == 'loads':\n                    loads.append(\n\
-          \                        LoadModule(time_series=ts)\n                  \
-          \  )\n\n                elif module == 'renewables':\n                 \
-          \   src_type = filename.split('_')[0]\n\n                    renewables.append(\n\
-          \                        (src_type, RenewableModule(time_series=ts))\n \
-          \                   )\n        else:\n            print(f'{module} directory\
-          \ not found. Exiting...')\n            exit(1)\n\n\n    batteries = [\n\
-          \        BatteryModule(**b)\n        for b in yaml.safe_load(open(\"battery.yaml\"\
-          , 'r')).values()\n    ]\n\n    microgrid = Microgrid([*batteries, *renewables,\
-          \ *loads, *grids])\n\n    os.makedirs(env.path, exist_ok=True)\n    microgrid.dump(open(os.path.join(env.path,\
-          \ 'env.yaml'), 'w'))\n\n    print(f'Microgrid saved to {env.path}')\n\n"
+          \ *\n\ndef data_ingestion(agent_id: int, dataset_dir: Output[Artifact]):\n\
+          \    import pandas as pd\n    from dotenv import load_dotenv\n    import\
+          \ os\n    from minio import Minio\n    from db import get_db_conn\n\n  \
+          \  load_dotenv(dotenv_path=\"/app/.env\")\n\n    conn, cursor = get_db_conn(\n\
+          \        database=os.getenv(\"DATABASE_NAME\"),\n        user=os.getenv(\"\
+          DATABASE_USER\"),\n        password=os.getenv(\"DATABASE_PASSWORD\"),\n\
+          \        host=os.getenv(\"DATABASE_HOST\"),\n        port=os.getenv(\"DATABASE_PORT\"\
+          ),\n        max_obs_size=os.getenv(\"MAX_OBS_SIZE\"),\n    )\n\n    os.makedirs(dataset_dir.path,\
+          \ exist_ok=True)\n\n    # retrieve all accumulated records from the database\
+          \ # TODO: uncomment this\n    # cursor.execute(f\"SELECT * FROM microgrid_data\
+          \ WHERE tenant_id = '{agent_id}'\")\n    # records = pd.DataFrame(\n   \
+          \ #     cursor.fetchall(), columns=[desc[0] for desc in cursor.description]\n\
+          \    # )\n    # records = records.drop(columns=[\"timestamp\", \"tenant_id\"\
+          ])\n\n    # simulate retrieval from database\n    values = [tuple(0.1 for\
+          \ _ in range(11)) for _ in range(100)]\n    records = pd.DataFrame(values,\
+          \ columns=[f\"obs_{i}\" for i in range(11)])\n\n    records.to_csv(f\"{dataset_dir.path}/batch.csv\"\
+          , index=False)\n\n    # delete the accumulated records from the database\n\
+          \    # cursor.execute(f\"DELETE FROM microgrid_data WHERE tenant_id = '{agent_id}'\"\
+          )\n    # conn.commit()\n    print(\"Retrieved records from the database\"\
+          )\n\n    # load previous agent (if it exists)\n    minio_client = Minio(\n\
+          \        endpoint=os.getenv(\"MINIO_ENDPOINT\"),\n        access_key=os.getenv(\"\
+          MINIO_ACCESS_KEY\"),\n        secret_key=os.getenv(\"MINIO_SECRET_KEY\"\
+          ),\n        secure=False,\n    )\n\n    if minio_client.bucket_exists(os.getenv(\"\
+          MINIO_BUCKET\")):\n        objects = minio_client.list_objects(\n      \
+          \      os.getenv(\"MINIO_BUCKET\"), prefix=f\"agent_{agent_id}.zip\"\n \
+          \       )\n        if len(objects) > 0:\n            minio_client.fget_object(\n\
+          \                os.getenv(\"MINIO_BUCKET\"),\n                objects[0].object_name,\n\
+          \                f\"{dataset_dir.path}/agent.zip\",\n            )\n   \
+          \         print(\"Retrieved agent from Minio\")\n        else:\n       \
+          \     print(\"No agent found in Minio, a new instance will be created\"\
+          )\n\n"
         image: rafego16/pipeline-custom-image:latest
+    exec-data-preparation:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - data_preparation
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef data_preparation(agent_type: str, template_id: int, dataset_dir:\
+          \ Input[Artifact], env: Output[Artifact]):\n    import os\n    import pickle\
+          \ as pkl\n    import pandas as pd\n    from agent.sb3_agent import SB3Agent\n\
+          \    from microgrid_template import get_microgrid_template, microgrid_from_template\n\
+          \n    template = get_microgrid_template(template_id)\n\n    records = pd.read_csv(os.path.join(dataset_dir.path,\
+          \ 'batch.csv'))\n    n_records = records.shape[0]\n\n    new_parameters\
+          \ = {\n        \"load\": records[\"obs_0\"].tolist(),\n        \"pv\": records[\"\
+          obs_1\"].tolist(),\n        \"last_soc\": records[\"obs_2\"].tolist()[-1],\n\
+          \        \"last_capa_to_charge\": records[\"obs_3\"].tolist()[-1],\n   \
+          \     \"last_capa_to_discharge\": records[\"obs_4\"].tolist()[-1],\n   \
+          \     \"grid_ts\": records[\"obs_5\"].tolist(),\n        \"grid_co2\": records[\"\
+          obs_6\"].tolist(),\n        \"grid_price_import\": records[\"obs_7\"].tolist(),\n\
+          \        \"grid_price_export\": records[\"obs_8\"].tolist(),\n    }\n\n\
+          \    _, microgrid_env = microgrid_from_template(template, new_parameters)\n\
+          \n    agent_path = os.path.join(dataset_dir.path, 'agent.zip')\n    if os.path.exists(agent_path):\n\
+          \        agent = SB3Agent.load(agent_type, agent_path, microgrid_env)\n\
+          \    else:\n        agent = SB3Agent(agent_type, microgrid_env)\n\n    with\
+          \ open(os.path.join(env.path, 'env.pkl'), 'wb') as f:\n        pkl.dump(microgrid_env,\
+          \ f)\n    print(f'Microgrid environment saved to {env.path}/env.pkl')\n\n\
+          \    agent.save(os.path.join(env.path, 'agent.zip'))\n    print(f'Agent\
+          \ saved to {env.path}/agent.pkl')\n\n"
+        image: rafego16/pipeline-custom-image-train:latest
 pipelineInfo:
   name: agent-pipeline
 root:
@@ -252,6 +271,9 @@ root:
               taskOutputArtifact:
                 outputArtifactKey: env
                 producerTask: data-preparation
+          parameters:
+            agent_type:
+              componentInputParameter: agent_type
         taskInfo:
           name: agent-routine
       agent-storing:
@@ -270,6 +292,8 @@ root:
           parameters:
             agent_id:
               componentInputParameter: agent_id
+            agent_type:
+              componentInputParameter: agent_type
         taskInfo:
           name: agent-storing
       data-ingestion:
@@ -279,8 +303,8 @@ root:
           name: comp-data-ingestion
         inputs:
           parameters:
-            batch_file:
-              componentInputParameter: batch_file
+            agent_id:
+              componentInputParameter: agent_id
         taskInfo:
           name: data-ingestion
       data-preparation:
@@ -296,13 +320,20 @@ root:
               taskOutputArtifact:
                 outputArtifactKey: dataset_dir
                 producerTask: data-ingestion
+          parameters:
+            agent_type:
+              componentInputParameter: agent_type
+            template_id:
+              componentInputParameter: template_id
         taskInfo:
           name: data-preparation
   inputDefinitions:
     parameters:
       agent_id:
         parameterType: NUMBER_INTEGER
-      batch_file:
+      agent_type:
         parameterType: STRING
+      template_id:
+        parameterType: NUMBER_INTEGER
 schemaVersion: 2.1.0
-sdkVersion: kfp-2.11.0
+sdkVersion: kfp-2.12.1

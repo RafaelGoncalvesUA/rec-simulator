@@ -16,8 +16,9 @@ run = kfp_client.create_run_from_pipeline_package(
     pipeline_file='training/pipeline.yaml',
     namespace='kubeflow-user-example-com',
     arguments={
-        'tenant_id': 0,
+        'agent_id': 0,
         "agent_type": "PPO",
+        'template_id': 0,
     },
 )
 

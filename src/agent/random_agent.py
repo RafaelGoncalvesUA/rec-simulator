@@ -9,8 +9,12 @@ class RandomAgent(BaseAgent):
         print("Skipping learning for RandomAgent...")
         pass
 
-    def predict(self, obs, deterministic=True):
-        return RandomAgent.env.action_space.sample(), None
+    def predict(self, obs, deterministic=True, env=None):
+        if env is None:
+            return RandomAgent.env.action_space.sample(), None
+        else:
+            RandomAgent.env = env
+            return env.action_space.sample(), None
 
     def save(self, path_str):
         print("Skipping saving for RandomAgent...")

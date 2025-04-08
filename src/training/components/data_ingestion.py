@@ -18,19 +18,27 @@ def data_ingestion(agent_id: int, dataset_dir: Output[Artifact]):
         password=os.getenv("DATABASE_PASSWORD"),
         host=os.getenv("DATABASE_HOST"),
         port=os.getenv("DATABASE_PORT"),
+        max_obs_size=os.getenv("MAX_OBS_SIZE"),
     )
 
-    # retrieve all accumulated records from the database
-    cursor.execute(f"SELECT * FROM agents WHERE id = {agent_id}")
-    records = pd.DataFrame(
-        cursor.fetchall(), columns=[desc[0] for desc in cursor.description]
-    )
-    records = records.drop(columns=["timestamp", "tenant_id"])
+    os.makedirs(dataset_dir.path, exist_ok=True)
+
+    # retrieve all accumulated records from the database # TODO: uncomment this
+    # cursor.execute(f"SELECT * FROM microgrid_data WHERE tenant_id = '{agent_id}'")
+    # records = pd.DataFrame(
+    #     cursor.fetchall(), columns=[desc[0] for desc in cursor.description]
+    # )
+    # records = records.drop(columns=["timestamp", "tenant_id"])
+
+    # simulate retrieval from database
+    values = [tuple(0.1 for _ in range(11)) for _ in range(100)]
+    records = pd.DataFrame(values, columns=[f"obs_{i}" for i in range(11)])
+
     records.to_csv(f"{dataset_dir.path}/batch.csv", index=False)
 
     # delete the accumulated records from the database
-    cursor.execute(f"DELETE FROM agents WHERE id = {agent_id}")
-    conn.commit()
+    # cursor.execute(f"DELETE FROM microgrid_data WHERE tenant_id = '{agent_id}'")
+    # conn.commit()
     print("Retrieved records from the database")
 
     # load previous agent (if it exists)

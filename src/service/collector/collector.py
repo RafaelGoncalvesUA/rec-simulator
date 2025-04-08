@@ -37,7 +37,7 @@ def deploy_training_pipeline(tenant_id, agent_type):
         arguments={
             "agent_id": tenant_id,
             "agent_type": agent_type,
-            "microgrid_template_id": tenant_id, # e.g. use template 0 for tenant 0 
+            "template_id": tenant_id, # e.g. use template 0 for tenant 0 
         },
     )
 

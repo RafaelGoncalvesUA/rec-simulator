@@ -1,14 +1,34 @@
 import pandas as pd
-from pymgrid import Microgrid
 from pymgrid import MicrogridGenerator as mgen
-from pymgrid.Environments.pymgrid_cspla import MicroGridEnv as CsDaMicroGridEnv
+from utils.custom_simulator.concrete_env import CustomEnv
+from utils.custom_simulator.microgrid import Microgrid
+import pymgrid
 
-def get_microgrid_template(mg_id, nb_microgrid=10):
-    generator = mgen.MicrogridGenerator(nb_microgrid=nb_microgrid)
-    generator.generate_microgrid()
-    microgrids = generator.microgrids
 
-    samples = [microgrids[9]] + microgrids[1:5] + [microgrids[6]]
+def microgrid_generator(nb_microgrid=25) -> mgen.MicrogridGenerator:
+    generator = mgen.MicrogridGenerator(nb_microgrid=nb_microgrid, path=pymgrid.__path__[0])
+    generator.generate_microgrid(False)
+    microgrid_lst = generator.microgrids
+    
+    return generator, microgrid_lst
+
+
+def custom_microgrid_generator(nb_microgrid=10) -> mgen.MicrogridGenerator:
+    generator = mgen.MicrogridGenerator(nb_microgrid=nb_microgrid, path=pymgrid.__path__[0])
+    generator.generate_microgrid(False)
+    microgrid_lst = generator.microgrids
+    
+    samples = [microgrid_lst[9]] + microgrid_lst[1:5] + [microgrid_lst[6]]
+    return generator, samples
+
+
+def get_microgrid_template(mg_id, generator=False):
+    if generator:
+        generator, _ = microgrid_generator()
+
+    microgrid_lst = generator.microgrids
+
+    samples = [microgrid_lst[9]] + microgrid_lst[1:5] + [microgrid_lst[6]]
     return samples[mg_id]
 
 
@@ -18,29 +38,32 @@ def microgrid_from_template(base, new_setting):
     parameters["capa_to_charge"] = [new_setting["last_capa_to_charge"]]
     parameters["capa_to_discharge"] = [new_setting["last_capa_to_discharge"]]
 
-    mg = Microgrid.Microgrid(
-        {
-            'architecture': base.architecture,
-            'load': pd.DataFrame({'Electricity:Facility [kW](Hourly)': new_setting["load"]}),
-            'pv': pd.DataFrame({'GH illum (lx)': new_setting["pv"]}),
-            'grid_ts': pd.DataFrame({'grid_status': new_setting["grid_ts"]}),
-            'df_actions': base._df_record_control_dict,
-            'df_status': base._df_record_state,
-            'df_actual_generation': base._df_record_actual_production,
-            'df_cost': base._df_record_cost,
-            'df_co2': base._df_record_co2,
-            'grid_price_import': pd.DataFrame({0: new_setting["grid_price_import"]}),
-            'grid_price_export': pd.DataFrame({0: new_setting["grid_price_export"]}),
-            'grid_co2': pd.DataFrame({'CO2_CISO_I_kwh': new_setting["grid_co2"]}),
-            'control_dict': base.control_dict,
-            'parameters': parameters,
-        }
-    )
+    param_dict = {
+        'architecture': base.architecture,
+        'load': pd.DataFrame({'Electricity:Facility [kW](Hourly)': new_setting["load"]}),
+        'pv': pd.DataFrame({'GH illum (lx)': new_setting["pv"]}),
+        'df_actions': base._df_record_control_dict,
+        'df_status': base._df_record_state,
+        'df_actual_generation': base._df_record_actual_production,
+        'df_cost': base._df_record_cost,
+        'df_co2': base._df_record_co2,
 
-    new_env = CsDaMicroGridEnv({'microgrid': mg,
-                            'forecast_args': None,
-                            'resampling_on_reset': False,
-                            'baseline_sampling_args': None})
+        'control_dict': base.control_dict,
+        'parameters': parameters,
+    }
+    if "grid_ts" in new_setting:
+        param_dict["grid_co2"] = pd.DataFrame({new_setting["grid_co2_iso"]: new_setting["grid_co2"]})
+        param_dict["grid_ts"] = pd.DataFrame({'grid_status': new_setting["grid_ts"]})
+        param_dict["grid_price_import"] = pd.DataFrame({0: new_setting["grid_price_import"]})
+        param_dict["grid_price_export"] = pd.DataFrame({0: new_setting["grid_price_export"]})
 
-    obs = new_env.reset()
-    return obs, mg, new_env
+    mg = Microgrid(param_dict)
+
+    new_env = CustomEnv({'microgrid': mg,
+                        'forecast_args': None,
+                        'resampling_on_reset': False,
+                        'baseline_sampling_args': None},
+                        negotiator=None
+                        )
+
+    return mg, new_env
