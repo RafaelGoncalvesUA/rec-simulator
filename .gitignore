@@ -6,8 +6,9 @@ benchmark.txt
 # Drafts, temp files
 tmp/
 **.pkl
-*.zip
+**agent**.zip
 logs/
+lightning_logs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -3,6 +3,7 @@ from pymgrid import MicrogridGenerator as mgen
 from utils.custom_simulator.concrete_env import CustomEnv
 from utils.custom_simulator.microgrid import Microgrid
 import pymgrid
+import random
 
 
 def microgrid_generator(nb_microgrid=25) -> mgen.MicrogridGenerator:
@@ -30,6 +31,18 @@ def get_microgrid_template(mg_id, generator=False):
 
     samples = [microgrid_lst[9]] + microgrid_lst[1:5] + [microgrid_lst[6]]
     return samples[mg_id]
+
+
+def shuffle_chunks(lst, chunk_size, seed=None):
+    random.seed(seed)
+    final_lst = []
+
+    for i in range(0, len(lst), chunk_size):
+        chunk = lst[i:i + chunk_size]
+        random.shuffle(chunk)
+        final_lst += chunk
+
+    return final_lst
 
 
 def microgrid_from_template(base, new_setting, horizon=24):

@@ -1,6 +1,4 @@
 from logic.agent.heuristics_agent import BasicAgent
-import random
-
 
 class RenewableEnergyCommunity:
     def __init__(self, rec_id, market, marginal_price_ts=None):
@@ -59,6 +57,9 @@ class RenewableEnergyCommunity:
             print("REC {} | Tenant {} not found.".format(self.rec_id, tenant_id))
 
     def log_step(self):
+        absolute_saving = self.baseline_cost - self.cost
+        percentage_saving = (absolute_saving / self.baseline_cost) * 100 if self.baseline_cost > 0 else 0
+
         self.logs.append({
             "step": self.current_step,
             "total_demand": self.total_demand,
@@ -66,6 +67,8 @@ class RenewableEnergyCommunity:
             "cost": self.step_cost,
             "accumulated_cost": self.cost,
             "accumulated_baseline_cost": self.baseline_cost,
+            "absolute_accumulated_saving": absolute_saving,
+            "percentage_accumulated_saving": percentage_saving,
             **{f"tenant_{i}_cost": self.individual_costs[i] for i in range(self.n_tenants)},
         })
 

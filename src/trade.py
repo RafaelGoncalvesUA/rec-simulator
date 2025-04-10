@@ -6,18 +6,21 @@ from utils.microgrid_template import microgrid_generator, microgrid_from_templat
 import pymarket as pm
 from pymarket.bids import BidManager
 import pandas as pd
+import numpy as np
+import pickle as pkl
 import random
-
-random.seed(1234)
 
 NUM_STEPS = 100
 NUM_RECS = 10
 NUM_TENANTS = 5
+LOAD_NEW_TS = True
+seed = np.random.RandomState(42)
 
 _, samples = microgrid_generator()
 print("Generated microgrid templates.\n")
 
 recs = []
+
 market = pm.Market()
 
 marginal_price_ts = pd.read_csv("forecasting/data/price.csv").iloc[:NUM_STEPS, :]
@@ -35,7 +38,7 @@ for rec_id in range(NUM_RECS):
             "last_soc": template._df_record_state["battery_soc"][0],
             "last_capa_to_charge": template._df_record_state["capa_to_charge"][0],
             "last_capa_to_discharge": template._df_record_state["capa_to_discharge"][0],
-            "load": template._load_ts["Electricity:Facility [kW](Hourly)"][:NUM_STEPS],
+            "load": template._load_ts["Electricity:Facility [kW](Hourly)"].tolist()[:NUM_STEPS],
             "pv": template._pv_ts["GH illum (lx)"].tolist()[:NUM_STEPS]
         }
 
@@ -56,9 +59,18 @@ for rec_id in range(NUM_RECS):
 
         if ctr != 0:
             for key in {"load", "pv", "grid_co2"}:
-                new_lst = new_parameters[key].copy()
-                random.shuffle(new_lst)
-                new_parameters[key] = new_lst
+                if LOAD_NEW_TS:
+                    with open(f"../data/{key}_{rec_id}_{ctr}.pkl", "rb") as f:
+                        new_lst = pkl.load(f)
+                    new_parameters[key] = new_lst
+
+                else:
+                    new_lst = new_parameters[key].copy()
+                    random.shuffle(new_lst)
+                    new_parameters[key] = new_lst
+
+                    with open(f"../data/{key}_{rec_id}_{ctr}.pkl", "wb") as f:
+                        pkl.dump(new_lst, f)
 
         print("Using template no. {}...".format(ctr))
         microgrid, env = microgrid_from_template(template, new_parameters, horizon=5)
@@ -76,7 +88,7 @@ while not recs[0].done:
         energy_need = rec.handle_exportations()
         rec.negotiate(energy_need)
 
-    transactions, extras = market.run("p2p")
+    transactions, extras = market.run("p2p", r=seed)
     market.bm = BidManager() # clear bids
 
     for rec in recs:
