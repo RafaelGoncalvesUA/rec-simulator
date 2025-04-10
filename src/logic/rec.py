@@ -1,7 +1,10 @@
 from logic.agent.heuristics_agent import BasicAgent
+import os
 
 class RenewableEnergyCommunity:
-    def __init__(self, rec_id, market, marginal_price_ts=None):
+    def __init__(
+        self, rec_id, market, agent=(BasicAgent, "heuristics"), marginal_price_ts=None
+    ):
         self.rec_id = rec_id
         self.cost = 0
         self.baseline_cost = 0
@@ -13,6 +16,8 @@ class RenewableEnergyCommunity:
         self.n_tenants = 0
 
         self.market = market
+        self.agent_cls = agent[0]
+        self.agent_name = agent[1]
 
         self.logs = []
 
@@ -73,6 +78,16 @@ class RenewableEnergyCommunity:
         })
 
     def train_agent(self, tenant_id):
+        agent_path = f"agent_rec{self.rec_id}_tenant{tenant_id}.zip"
+
+        if os.path.exists(agent_path):
+            agent = self.agent_cls.load(self.agent_name, agent_path)
+
+        else:
+            agent = self.agent_cls(self.agent_name, None)
+            agent.learn(100000)
+            agent.save(agent_path)
+
         agent = BasicAgent("heuristics", None)
         agent.learn(100000)
         self.agents[tenant_id] = agent

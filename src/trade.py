@@ -27,7 +27,7 @@ marginal_price_ts = pd.read_csv("forecasting/data/price.csv").iloc[:NUM_STEPS, :
 marginal_price_ts["PRICE"] = marginal_price_ts["PRICE"] / 1000 # convert to kWh
 
 for rec_id in range(NUM_RECS):
-    rec = RenewableEnergyCommunity(rec_id, market, marginal_price_ts)
+    rec = RenewableEnergyCommunity(rec_id, market, marginal_price_ts=marginal_price_ts)
     rec.reset()
 
     ctr = 0
