@@ -838,6 +838,7 @@ class Microgrid:
             self._data_set_to_use_default = "training"
             self._data_set_to_use = "training"
 
+
         elif self._has_train_test_split == True and cancel == True:
             self._has_train_test_split = False
             self._data_set_to_use_default = "all"

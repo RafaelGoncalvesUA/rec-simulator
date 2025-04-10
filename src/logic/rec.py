@@ -1,4 +1,5 @@
-from logic.agent.random_agent import RandomAgent
+from logic.agent.heuristics_agent import BasicAgent
+import random
 
 
 class RenewableEnergyCommunity:
@@ -13,10 +14,14 @@ class RenewableEnergyCommunity:
         self.individual_costs = {}
         self.n_tenants = 0
 
+        self.market = market
+
         self.logs = []
 
         if marginal_price_ts is None:
             self.marginal_price_ts = [1.0] * 50
+        else:
+            self.marginal_price_ts = marginal_price_ts["PRICE"].tolist()
 
     def reset(self):
         self.current_step = 0
@@ -53,25 +58,35 @@ class RenewableEnergyCommunity:
         else:
             print("REC {} | Tenant {} not found.".format(self.rec_id, tenant_id))
 
+    def log_step(self):
+        self.logs.append({
+            "step": self.current_step,
+            "total_demand": self.total_demand,
+            "energy_pool": self.energy_pool,
+            "cost": self.step_cost,
+            "accumulated_cost": self.cost,
+            "accumulated_baseline_cost": self.baseline_cost,
+            **{f"tenant_{i}_cost": self.individual_costs[i] for i in range(self.n_tenants)},
+        })
+
     def train_agent(self, tenant_id):
-        agent = RandomAgent("random", self.environments[tenant_id])
+        agent = BasicAgent("heuristics", None)
         agent.learn(100000)
         self.agents[tenant_id] = agent
 
     def negotiate(self, energy_need):
-        if energy_need > 0:
-            # try to buy energy from the market (may fail)
-            self.energy_pool += energy_need
-            print("REC {} | Negotiating to buy energy: {} units.".format(self.rec_id, energy_need))
-            return energy_need * self.marginal_price_ts[self.current_step]
+        price = self.marginal_price_ts[self.current_step]
+        print("REC {} actions: {}".format(self.rec_id, self.actions))
 
-        elif energy_need < 0:
-            # try to sell energy to the market (may fail)
-            self.energy_pool -= energy_need
-            print("REC {} | Negotiating to sell energy: {} units.".format(self.rec_id, -energy_need))
-            return -energy_need * self.marginal_price_ts[self.current_step]
+        if energy_need > 0:
+            # Needs to buy energy -> add a demand bid
+            self.market.accept_bid(energy_need, price, self.rec_id, True, self.current_step)
+            print(f"REC {self.rec_id} wants to buy {energy_need} units.")
         
-        return 0
+        elif energy_need < 0:
+            # Wants to sell energy -> add a supply offer
+            self.market.accept_bid(abs(energy_need), price * 1.1, self.rec_id, False)
+            print(f"REC {self.rec_id} wants to sell {abs(energy_need)} units.")
 
     def retrieve_exchange_actions(self):
         exchanges = []
@@ -81,94 +96,113 @@ class RenewableEnergyCommunity:
             obs = self.observations[tenant_id]
             env = self.environments[tenant_id]
             
-            action, _ = self.agents[tenant_id].predict(obs, env=env)
+            action, _ = self.agents[tenant_id].predict(obs)
             
             control_dict = env.get_action(action)
             controls.append(control_dict)
             exchanges.append(control_dict["grid_export"] - control_dict["grid_import"])
 
         return controls, exchanges
-    
-    def log_step(self, step_cost, step_demand):
-        self.logs.append({
-            "step": self.current_step,
-            "total_demand": step_demand,
-            "energy_pool": self.energy_pool,
-            "cost": step_cost,
-            "accumulated_cost": self.cost,
-            "accumulated_baseline_cost": self.baseline_cost,
-            **{f"tenant_{i}_cost": self.individual_costs[i] for i in range(self.n_tenants)},
-        })
-    
-    def execute_transactions(self, controls, transactions):
+
+    def handle_exportations(self):
+        self.controls, self.actions = self.retrieve_exchange_actions()
+        self.tenant_transactions = [0] * self.n_tenants
+
+        # handle energy exports
+        for tenant_id, surplus in enumerate(self.actions):
+            if surplus > 0:
+                self.energy_pool += surplus
+                self.reputation[tenant_id] += surplus * self.marginal_price_ts[self.current_step]
+                self.tenant_transactions[tenant_id] = surplus
+                print("REC {} | Tenant {}: Energy surplus of {} added to pool.".format(self.rec_id, tenant_id, surplus))
+
+        # handle energy imports
+        self.total_demand = sum(max(0, -action) for action in self.actions)
+        self.energy_need = self.total_demand - self.energy_pool
+
+        return self.energy_need
+
+    def execute_tenant_transactions(self):
         for tenant_id in range(self.n_tenants):
             env = self.environments[tenant_id]
-            control_dict = controls[tenant_id]
-            transaction = transactions[tenant_id]
+            control_dict = self.controls[tenant_id]
+            transaction = self.tenant_transactions[tenant_id]
 
-            if transaction > 0:
-                control_dict["grid_export"] = transaction
-                control_dict["grid_import"] = 0
-
-            elif transaction < 0:
-                control_dict["grid_export"] = 0
+            if transaction < 0:
                 control_dict["grid_import"] = abs(transaction)
+                control_dict["grid_export"] = 0
+
+            elif transaction > 0:
+                control_dict["grid_import"] = 0
+                control_dict["grid_export"] = transaction
 
             obs, reward, _, _ = env.run_step(control_dict)
             print("REC {} | Tenant {}: Executed action with individual cost {}.".format(self.rec_id, tenant_id, -reward))
             self.observations[tenant_id] = obs
             self.individual_costs[tenant_id] -= reward
+    
+    def handle_market_transactions(self, transactions):
+        print("REC {} | Handling market transactions.".format(self.rec_id))
 
-    def step(self):
-        controls, actions = self.retrieve_exchange_actions()
-        transactions = [0] * self.n_tenants
+        self.baseline_cost += self.total_demand * self.marginal_price_ts[self.current_step]
+        rec_transactions = transactions[transactions.bid == self.rec_id]
 
-        # handle energy exports
-        for tenant_id, surplus in enumerate(actions):
-            if surplus > 0:
-                self.energy_pool += surplus
-                self.reputation[tenant_id] += surplus * self.marginal_price_ts[self.current_step]
-                transactions[tenant_id] = surplus
-                print("REC {} | Tenant {}: Energy surplus of {} added to pool.".format(self.rec_id, tenant_id, surplus))
+        # TODO: with a given probability, grid disconnects
 
-        # handle energy imports
-        total_demand = sum(max(0, -action) for action in actions)
-        self.baseline_cost += total_demand * self.marginal_price_ts[self.current_step]
+        if self.energy_need == 0:
+            print("REC {} | No energy needed, no negotation.".format(self.rec_id))
+            return
 
-        step_cost = self.negotiate(total_demand - self.energy_pool) # positive if it needs to buy energy
+        if rec_transactions.empty:
+            print("REC {} | No transaction, negotiating with OMIE market.".format(self.rec_id))
+            self.energy_pool += self.energy_need
+            self.step_cost = self.energy_need * self.marginal_price_ts[self.current_step]
+        else:
+            t = rec_transactions.iloc[0]
+            
+            if self.energy_need > 0:
+                self.energy_pool += t.quantity
+                self.step_cost = t.price * t.quantity
+                print("REC {} | Bought {} units at price {}.".format(self.rec_id, t.quantity, t.price))
+            else:
+                self.energy_pool -= t.quantity
+                self.step_cost = -t.price * t.quantity
+                print("REC {} | Sold {} units at price {}.".format(self.rec_id, t.quantity, t.price))
 
-        if total_demand <= self.energy_pool:
+    def handle_importations(self):
+        if self.total_demand <= self.energy_pool:
             print("REC {} | Energy pool is sufficient to meet demand.".format(self.rec_id))
             # full statisfaction of demand
-            for tenant_id, demand in enumerate(actions):
+            for tenant_id, demand in enumerate(self.actions):
                 if demand < 0:
                     self.energy_pool -= abs(demand)
                     self.reputation[tenant_id] -= abs(demand) * self.marginal_price_ts[self.current_step]
-                    transactions[tenant_id] = demand
+                    self.tenant_transactions[tenant_id] = demand
                     print("REC {} | Tenant {}: Asked for {} units, received {} units.".format(self.rec_id, tenant_id, -demand, abs(demand)))
         else:
             # limited energy, distribute proportionally to credits
             # consider total reputation of all tenants that are requesting energy
-            print("REC {} |Energy pool is insufficient to meet demand.".format(self.rec_id))
-            total_reputation = sum(self.reputation[i] for i in range(len(actions)) if actions[i] < 0)
+            print("REC {} | Energy pool is insufficient to meet demand.".format(self.rec_id))
+
+            current_reputation = self.reputation.copy()
+            total_reputation = sum(current_reputation[i] for i in range(len(self.actions)) if self.actions[i] < 0)
 
             if total_reputation == 0:
-                print("REC {} | No reputation available to distribute energy.".format(self.rec_id))
-                self.cost += step_cost
-                self.log_step(step_cost, total_demand)
-                return
+                print("REC {} | No reputation, distributing equally.".format(self.rec_id))
+                current_reputation = [1] * len(self.actions)
 
-            for tenant_id, demand in enumerate(actions):
+            for tenant_id, demand in enumerate(self.actions):
                 if demand < 0 and self.reputation[tenant_id] > 0:
                     # calculate the share of energy based on reputation
-                    share = (self.reputation[tenant_id] / total_reputation) * self.energy_pool
+                    share = (current_reputation[tenant_id] / total_reputation) * self.energy_pool
                     self.energy_pool -= share
                     self.reputation[tenant_id] -= share * self.marginal_price_ts[self.current_step]
-                    transactions[tenant_id] = share
+                    self.tenant_transactions[tenant_id] = share
                     print("REC {} | Tenant {}: Asked for {} units, received {} units.".format(self.rec_id, tenant_id, -demand, share))
 
-        self.execute_transactions(controls, transactions)
+    def step(self):
+        self.execute_tenant_transactions()
         self.current_step += 1
 
-        self.cost += step_cost
-        self.log_step(step_cost, total_demand)
+        self.cost += self.step_cost
+        self.log_step()

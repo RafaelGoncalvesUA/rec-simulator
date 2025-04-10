@@ -32,7 +32,7 @@ def get_microgrid_template(mg_id, generator=False):
     return samples[mg_id]
 
 
-def microgrid_from_template(base, new_setting):
+def microgrid_from_template(base, new_setting, horizon=24):
     parameters = base.parameters.copy()
     parameters["soc"] = [new_setting["last_soc"]]
     parameters["capa_to_charge"] = [new_setting["last_capa_to_charge"]]
@@ -57,7 +57,7 @@ def microgrid_from_template(base, new_setting):
         param_dict["grid_price_import"] = pd.DataFrame({0: new_setting["grid_price_import"]})
         param_dict["grid_price_export"] = pd.DataFrame({0: new_setting["grid_price_export"]})
 
-    mg = Microgrid(param_dict)
+    mg = Microgrid(param_dict, horizon=horizon)
 
     new_env = CustomEnv({'microgrid': mg,
                         'forecast_args': None,

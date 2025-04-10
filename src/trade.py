@@ -2,23 +2,29 @@ import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 from logic.rec import RenewableEnergyCommunity
-from utils.microgrid_template import microgrid_generator, get_microgrid_template, microgrid_from_template
-
+from utils.microgrid_template import microgrid_generator, microgrid_from_template
+import pymarket as pm
+from pymarket.bids import BidManager
+import pandas as pd
 import random
 
 random.seed(1234)
 
 NUM_STEPS = 100
-NUM_RECS = 1
+NUM_RECS = 10
 NUM_TENANTS = 5
 
 _, samples = microgrid_generator()
 print("Generated microgrid templates.\n")
 
 recs = []
+market = pm.Market()
+
+marginal_price_ts = pd.read_csv("forecasting/data/price.csv").iloc[:NUM_STEPS, :]
+marginal_price_ts["PRICE"] = marginal_price_ts["PRICE"] / 1000 # convert to kWh
 
 for rec_id in range(NUM_RECS):
-    rec = RenewableEnergyCommunity(rec_id, None)
+    rec = RenewableEnergyCommunity(rec_id, market, marginal_price_ts)
     rec.reset()
 
     ctr = 0
@@ -55,7 +61,7 @@ for rec_id in range(NUM_RECS):
                 new_parameters[key] = new_lst
 
         print("Using template no. {}...".format(ctr))
-        microgrid, env = microgrid_from_template(template, new_parameters)
+        microgrid, env = microgrid_from_template(template, new_parameters, horizon=5)
         
         rec.add_tenant(microgrid, env)
         ctr += 1
@@ -64,9 +70,21 @@ for rec_id in range(NUM_RECS):
     print()
     recs.append(rec)
 
+
 while not recs[0].done:
     for rec in recs:
+        energy_need = rec.handle_exportations()
+        rec.negotiate(energy_need)
+
+    transactions, extras = market.run("p2p")
+    market.bm = BidManager() # clear bids
+
+    for rec in recs:
+        rec.handle_market_transactions(transactions.get_df())
+        rec.handle_importations()
         rec.step()
-        print()
+        
+        absolute_saving = rec.baseline_cost - rec.cost
+        percentage_saving = (absolute_saving / rec.baseline_cost) * 100
 
-
+        print(f"Saved REC {rec.rec_id}: {absolute_saving:.2f}$ ({percentage_saving:.2f}%)")

@@ -1,6 +1,6 @@
 # simulator package
 pymgrid/
-src/agent/models/*
+src/logic/agent/models/*
 benchmark.txt
 
 # Drafts, temp files
