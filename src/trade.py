@@ -10,10 +10,10 @@ import numpy as np
 import pickle as pkl
 import random
 
-NUM_STEPS = 100
+NUM_STEPS = 100000 # high enough to cover all the simulation
 NUM_RECS = 10
 NUM_TENANTS = 5
-LOAD_NEW_TS = True
+LOAD_NEW_TS = False
 seed = np.random.RandomState(42)
 
 _, samples = microgrid_generator()
@@ -50,8 +50,8 @@ for rec_id in range(NUM_RECS):
             new_parameters["grid_co2"] = grid_co2
 
             # grid price will be then set by the REC
-            new_parameters["grid_price_import"] = template._grid_price_import[0].tolist()[:NUM_STEPS]
-            new_parameters["grid_price_export"] = template._grid_price_export[0].tolist()[:NUM_STEPS]
+            new_parameters["grid_price_import"] = marginal_price_ts["PRICE"].tolist()[:NUM_STEPS]
+            new_parameters["grid_price_export"] = marginal_price_ts["PRICE"].tolist()[:NUM_STEPS]
             new_parameters["grid_ts"] = [1] * NUM_STEPS
         else:
             ctr += 1
@@ -73,8 +73,8 @@ for rec_id in range(NUM_RECS):
                         pkl.dump(new_lst, f)
 
         print("Using template no. {}...".format(ctr))
-        microgrid, env = microgrid_from_template(template, new_parameters, horizon=5)
-        
+        microgrid, env = microgrid_from_template(template, new_parameters)
+
         rec.add_tenant(microgrid, env)
         ctr += 1
         print()
@@ -82,14 +82,21 @@ for rec_id in range(NUM_RECS):
     print()
     recs.append(rec)
 
+num_iters = 0
+num_iters_with_transactions = 0
 
 while not recs[0].done:
+    print("Iteration no. {}".format(num_iters))
+
     for rec in recs:
         energy_need = rec.handle_exportations()
         rec.negotiate(energy_need)
 
     transactions, extras = market.run("p2p", r=seed)
     market.bm = BidManager() # clear bids
+
+    if not transactions.get_df().empty:
+        num_iters_with_transactions += 1
 
     for rec in recs:
         rec.handle_market_transactions(transactions.get_df())
@@ -99,4 +106,14 @@ while not recs[0].done:
         absolute_saving = rec.baseline_cost - rec.cost
         percentage_saving = (absolute_saving / rec.baseline_cost) * 100
 
-        print(f"Saved REC {rec.rec_id}: {absolute_saving:.2f}$ ({percentage_saving:.2f}%)")
+        # print(f"Saved REC {rec.rec_id}: {absolute_saving:.2f}$ ({percentage_saving:.2f}%)")
+
+    num_iters += 1
+
+for rec in recs:
+    logs = pd.DataFrame(rec.logs)
+    logs.to_csv(f"rec_{rec.rec_id}.csv", index=False)
+print("Simulation finished.")
+
+print(f"Number of iterations: {num_iters}")
+print(f"Number of iterations with transactions: {num_iters_with_transactions}")

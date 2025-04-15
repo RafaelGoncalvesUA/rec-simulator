@@ -38,11 +38,11 @@ class SB3Agent(BaseAgent):
         self.base_name = base
         self.base = self.supported_agents[self.base_name]
 
-        os.makedirs("agent/models", exist_ok=True)
-        os.makedirs(f"agent/models/{self.base_name}", exist_ok=True)
+        os.makedirs("logic/agent/models", exist_ok=True)
+        os.makedirs(f"logic/agent/models/{self.base_name}", exist_ok=True)
 
         if env:
-            self.env = Monitor(env, f"agent/models/{self.base_name}/monitor.csv")
+            self.env = Monitor(env, f"logic/agent/models/{self.base_name}/monitor.csv")
 
             self.instance = self.base(
                 "MlpPolicy",

@@ -890,10 +890,10 @@ class Microgrid:
                     self._tracking_timestep + 1, 0
                 ]
                 self._next_grid_price_import = self._grid_price_import_train.iloc[
-                    self._tracking_timestep + 1, 0
+                    self._tracking_timestep, 0
                 ]
                 self._next_grid_price_export = self._grid_price_export_train.iloc[
-                    self._tracking_timestep + 1, 0
+                    self._tracking_timestep, 0
                 ]
                 self._next_grid_co2 = self._grid_co2_train.iloc[
                     self._tracking_timestep + 1, 0
@@ -903,6 +903,7 @@ class Microgrid:
                 self.grid.status = self._grid_status_test.iloc[
                     self._tracking_timestep, 0
                 ]
+
                 self.grid.price_import = self._grid_price_import_test.iloc[
                     self._tracking_timestep, 0
                 ]
@@ -915,10 +916,10 @@ class Microgrid:
                     self._tracking_timestep + 1, 0
                 ]
                 self._next_grid_price_import = self._grid_price_import_test.iloc[
-                    self._tracking_timestep + 1, 0
+                    self._tracking_timestep, 0
                 ]
                 self._next_grid_price_export = self._grid_price_export_test.iloc[
-                    self._tracking_timestep + 1, 0
+                    self._tracking_timestep, 0
                 ]
                 self._next_grid_co2 = self._grid_co2_test.iloc[
                     self._tracking_timestep + 1, 0
@@ -939,10 +940,10 @@ class Microgrid:
                         self._tracking_timestep + 1, 0
                     ]
                     self._next_grid_price_import = self._grid_price_import.iloc[
-                        self._tracking_timestep + 1, 0
+                        self._tracking_timestep, 0
                     ]
                     self._next_grid_price_export = self._grid_price_export.iloc[
-                        self._tracking_timestep + 1, 0
+                        self._tracking_timestep, 0
                     ]
                     self._next_grid_co2 = self._grid_co2.iloc[
                         self._tracking_timestep + 1, 0
@@ -1405,7 +1406,6 @@ class Microgrid:
             ) * self.parameters["battery_cost_cycle"].values[0]
 
         cost += self.parameters["cost_co2"].values[0] * df_co2["co2"][-1]
-        cost_dict = {"cost": cost}
 
         df["cost"].append(cost)
 

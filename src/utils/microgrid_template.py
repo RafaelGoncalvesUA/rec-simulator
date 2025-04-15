@@ -45,7 +45,7 @@ def shuffle_chunks(lst, chunk_size, seed=None):
     return final_lst
 
 
-def microgrid_from_template(base, new_setting, horizon=24):
+def microgrid_from_template(base, new_setting, horizon=24, timestep=1):
     parameters = base.parameters.copy()
     parameters["soc"] = [new_setting["last_soc"]]
     parameters["capa_to_charge"] = [new_setting["last_capa_to_charge"]]
@@ -70,13 +70,11 @@ def microgrid_from_template(base, new_setting, horizon=24):
         param_dict["grid_price_import"] = pd.DataFrame({0: new_setting["grid_price_import"]})
         param_dict["grid_price_export"] = pd.DataFrame({0: new_setting["grid_price_export"]})
 
-    mg = Microgrid(param_dict, horizon=horizon)
+    mg = Microgrid(param_dict, horizon=horizon, timestep=timestep)
 
     new_env = CustomEnv({'microgrid': mg,
                         'forecast_args': None,
                         'resampling_on_reset': False,
-                        'baseline_sampling_args': None},
-                        negotiator=None
-                        )
+                        'baseline_sampling_args': None})
 
     return mg, new_env
