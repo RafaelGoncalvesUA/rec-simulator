@@ -119,8 +119,10 @@ def run_simulation(config, log_id=0, tune=False, trials=-1):
     microgrid = config["microgrid"]
     env = create_env(microgrid, split=config["train_test_split"])
 
-    if tune:
-        return tune_agent(env, config, log_id, trials)
+    
+
+    # if tune:
+    #     return tune_agent(env, config, log_id, trials)
                       
     extra_args = {"learning_rate": config["learning_rate"], "batch_size": config["batch_size"]}
     return fit_agent(env, config, log_id, extra_args)

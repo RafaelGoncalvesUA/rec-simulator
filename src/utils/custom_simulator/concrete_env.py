@@ -1,10 +1,10 @@
 from utils.custom_simulator.base_env import BaseEnvironment
+from pymgrid.Environments import Preprocessing
 from gym.spaces import Discrete
 from neuralprophet import NeuralProphet
 import datetime
 import pandas as pd
 import numpy as np
-from utils.out_supressor import suppress_output
 import logging
 
 # disable all
@@ -47,6 +47,7 @@ class CustomEnv(BaseEnvironment):
         n_lags=0,
         forecast_steps=[],
         first_timestamp=datetime.datetime(2024, 1, 1),
+        price_forecasts_file="forecasting/price_forecasts.csv"
     ):
         mg = env_config["microgrid"]
 
@@ -54,12 +55,14 @@ class CustomEnv(BaseEnvironment):
         self.n_lags = n_lags
         self.forecast_steps = forecast_steps
 
-        if self.n_lags and forecast_steps:
+        if self.predictors:
             self.forecast_horizon = forecast_steps[-1]
+            self.records = {p: [] for p in self.predictors}
         else:
             self.forecast_horizon = 0
 
         self.first_timestamp = first_timestamp 
+        self.price_forecasts = pd.read_csv(price_forecasts_file)
 
         super().__init__(env_config, ns=len(mg._df_record_state.keys()) + 1 + len(self.forecast_steps))
         print("Creating custom env...")
@@ -83,27 +86,23 @@ class CustomEnv(BaseEnvironment):
         updated_values.pop('hour', None)
 
         first_window_date = self.first_timestamp + datetime.timedelta(hours=self.mg._tracking_timestep-self.n_lags)
-        time_window = [first_window_date + datetime.timedelta(hours=i) for i in range(self.n_lags*2)]
+        time_window = [first_window_date + datetime.timedelta(hours=i) for i in range(self.n_lags + self.forecast_horizon)]
 
         s_ = np.array(list(updated_values.values()))
 
         if self.predictors:
             for p, predictor in self.predictors.items():
-                records = self.mg._df_record_state[p]
-                records = [self.mg._next_grid_price_import] if len(records) == 1 else records[1:]
-                min_len = min(len(records), len(time_window))
-                buffer = {"ds": time_window[:min_len], "y": records[-min_len:]}
-                buffer_df = pd.DataFrame(buffer)
+                self.records[p].append(self.mg._df_record_state[p][-1])
 
-                if min_len < self.n_lags * 2:
+                if len(self.records[p]) < self.n_lags + self.forecast_horizon:
                     # use average
-                    forecasts = [buffer_df["y"].mean()] * len(self.forecast_steps)
-                else:
-                    # use NeuralProphet prediction
-                    res = suppress_output(predictor.predict, buffer_df)
-                    res = res[[f"yhat{f}" for f in self.forecast_steps]].iloc[-1]
-                    forecasts = [max(f, -0.01) for f in res.values.tolist()]
+                    forecasts = [np.mean(self.records[p])] * len(self.forecast_steps)
 
+                    if reset:
+                        self.records[p] = self.records[p][:-1]
+                else:
+                    forecasts = [max(x, -0.01) for x in self.price_forecasts.iloc[len(self.records[p])-1].values]
+                
                 s_ = np.append(s_, forecasts)
 
         if reset:
@@ -149,3 +148,23 @@ class CustomEnv(BaseEnvironment):
         self.round += 1
 
         return self.state, self.reward, self.done, self.info
+    
+    def reset(self, testing=False):
+        if not testing and self.predictors:
+            self.records = {p: [] for p in self.predictors}
+
+        if "testing" in self.env_config:
+            testing = self.env_config["testing"]
+        self.round = 1
+        # Reseting microgrid
+        self.mg.reset(testing=testing)
+        if testing == True:
+            self.TRAIN = False
+        elif self.resampling_on_reset == True:
+            Preprocessing.sample_reset(self.mg.architecture['grid'] == 1, self.saa, self.mg, sampling_args=sampling_args)
+        
+        
+        self.state, self.reward, self.done, self.info =  self.transition(), 0, False, {}
+        
+        # return self.state, self.info
+        return self.state

@@ -1,7 +1,11 @@
 from logic.agent.sb3_agent import SB3Agent
 from logic.agent.random_agent import RandomAgent
-from utils.simulation import run_simulation
+from logic.agent.heuristics_agent import BasicAgent
+from utils.microgrid_template import microgrid_from_template
+from utils.custom_simulator.concrete_env import CustomEnv
 from torch import nn
+from neuralprophet.utils import load
+import os
 
 import os
 import pandas as pd
@@ -18,43 +22,63 @@ if os.path.exists("logs"):
     os.system("rm -rf agent/models")
     os.system("rm agent.zip")
 
-# ----------------- config space -----------------
+# ----------------- load data -----------------
 generator = mgen.MicrogridGenerator(nb_microgrid=10)
 generator.generate_microgrid()
 microgrids = generator.microgrids
 
-samples = [microgrids[9]] + microgrids[1:5] + [microgrids[6]]
+predictors = {"grid_price_import": "run_24_12_model.np"}
 
+samples = []
+n_microgrids = 5
+ctr = 0
+
+while len(samples) < n_microgrids:
+    template = microgrids[ctr]
+    # has connection to the grid
+    if hasattr(template, "_grid_status_ts"):
+        samples.append(template)
+    else:
+        ctr += 1
+        continue
+
+    ctr += 1
+
+marginal_price_ts = pd.read_csv("forecasting/price.csv")
+marginal_price_ts["PRICE"] = marginal_price_ts["PRICE"] / 1000 # convert to kWh
+
+# ----------------- config space -----------------
 config_space = {
-    "microgrid": [samples[0]],
+    "microgrid": samples,
     
     "agent": [
         (SB3Agent, "DQN"),
         (SB3Agent, "A2C"),
         (SB3Agent, "PPO"),
-        (RandomAgent, None),
+        (RandomAgent, "random"),
+        (BasicAgent, "heuristics"),
     ],
     "policy_act": [
         nn.ReLU,
-        nn.Tanh,
+        # nn.Tanh,
     ],
     "policy_net_arch": [
-        [32, 32],   # narrower
+        # [32, 32],   # narrower
         [64, 64],   # default
-        [128, 128], # wider
+        # [128, 128], # wider
     ],
-    "learning_rate": [1e-4, 5e-4, 1e-3, 5e-3, 1e-2], 
-    "batch_size": [32, 64, 128, 256],
+    "learning_rate": [5e-4],
+    # "learning_rate": [1e-4, 5e-4, 1e-3], 
+    # "batch_size": [32, 64, 128, 256],
 
     "train_steps": [100000],
-    "train_test_split": [0.7],
 }
 
 vals = [
     val for val in [dict(zip(config_space.keys(), val)) for val in product(*config_space.values())]
     
     # no need to variate the policy_act and policy_net_arch for RandomAgent / IdleAgent
-    if val["agent"][0] not in {RandomAgent} or \
+    if val["agent"][0] not in {RandomAgent, BasicAgent} or \
     (val["policy_act"] == config_space["policy_act"][0] and val["policy_net_arch"] == config_space["policy_net_arch"][0])
 ]
 
@@ -81,7 +105,68 @@ for i, config in enumerate(vals):
     print(f"====== Configuration {i + 1}/{len(vals)} ======")
     print(config)
 
-    agent, total_cost = run_simulation(config, i)
+    template = config["microgrid"]
+
+    co2_iso = "CO2_CISO_I_kwh" if "CO2_CISO_I_kwh" in template._grid_co2.columns else "CO2_DUK_I_kwh"
+
+    new_setting = {
+        "last_soc": template._df_record_state["battery_soc"][0],
+        "last_capa_to_charge": template._df_record_state["capa_to_charge"][0],
+        "last_capa_to_discharge": template._df_record_state["capa_to_discharge"][0],
+        "load": template._load_ts["Electricity:Facility [kW](Hourly)"].tolist(),
+        "pv": template._pv_ts["GH illum (lx)"].tolist(),
+        "co2_iso": "CO2_CISO_I_kwh",
+        "grid_co2_iso": co2_iso,
+        "grid_co2": template._grid_co2[co2_iso].tolist(),
+        "grid_price_import": marginal_price_ts["PRICE"].tolist(),
+        "grid_price_export": marginal_price_ts["PRICE"].tolist(),
+        "grid_ts": [1] * template._load_ts.shape[0],
+    }
+
+    microgrid, _ = microgrid_from_template(template, new_setting, horizon=24, timestep=1)
+
+    microgrid_env = CustomEnv({'microgrid': microgrid,
+                            'forecast_args': None,
+                            'resampling_on_reset': False,
+                            'baseline_sampling_args': None},
+                            predictors,
+                            n_lags=24,
+                            forecast_steps=[1, 8, 12],
+                        )
+    
+    # ------------------ fit agent -----------------
+    print("Fitting agent...")
+    base_class, agent_type = config["agent"]
+    obs = microgrid_env.reset(testing=False)
+
+    agent = base_class(
+        agent_type,
+        microgrid_env,
+        policy={"activation_fn": config["policy_act"], "net_arch": config["policy_net_arch"]},
+        extra_args={"learning_rate": config["learning_rate"], "batch_size": 32}
+    )
+
+    agent.learn(total_timesteps=config["train_steps"])
+
+    # ------------------ test agent -----------------
+    print("Testing agent...")
+    obs = microgrid_env.reset(testing=True)
+    costs = []
+
+    while not microgrid_env.done:
+        action, _ = agent.predict(obs, deterministic=True)
+        obs, reward, _, _ = microgrid_env.step(action)
+        costs.append(-reward)
+        ctr += 1
+
+    results_df = pd.DataFrame(costs, columns=["costs"])
+    
+    os.makedirs("logs", exist_ok=True)
+    results_dir = f"./logs/config_{i}.csv"
+    results_df.to_csv(results_dir)
+    microgrid_env.close()
+    
+    total_cost = results_df["costs"].sum()
 
     agent_log = pd.DataFrame([{
         "config_id": i,
@@ -105,9 +190,8 @@ for idx in best_performers:
     print("--->", vals[idx])
 print(f"Lowest cost: {lowest_cost:.4e}")
 
-# ----------------- try to load and run best performer -----------------
+# ----------------- try to load best performer -----------------
 print("\n====== Running best performer for best config ======")
 best_config = vals[best_performers.pop()]
 base_class, agent_type = best_config["agent"]
 agent = base_class.load(agent_type, "agent.zip")
-run_simulation(best_config) # to ensure that it runs properly

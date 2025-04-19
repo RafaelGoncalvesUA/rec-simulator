@@ -12,17 +12,19 @@ stable-baselines3==1.0.0
 gym @ git+https://github.com/Pythoniasm/gym-fork.git@fix-v0.21.0 # gym==0.21.0
 neuralprophet
 
-torch
---extra-index-url https://download.pytorch.org/whl/cu118
+# torch
+# --extra-index-url https://download.pytorch.org/whl/cu118
 
 # Visualisation
 plotly
 kaleido
 tabulate
 PyQt5
+ipykernel
 
 # Optimisation
 ray[tune]
 
 # OMIE datasets
 OMIEData
+

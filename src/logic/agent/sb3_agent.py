@@ -4,6 +4,9 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3 import PPO, DQN, A2C
 # from sb3_contrib import QRDQN, RecurrentPPO, ARS, TRPO
 import os
+import random
+
+random.seed(42)
 
 from logic.agent._save_callback import SaveOnBestTrainingRewardCallback # TODO: remove
 
@@ -22,6 +25,7 @@ class SB3Agent(BaseAgent):
     custom_default_args = {
         "PPO": {},
         "DQN": {
+            "verbose": 2,
             "train_freq": 1,
             "buffer_size": 50000,
             "learning_starts": 1000,
@@ -57,7 +61,7 @@ class SB3Agent(BaseAgent):
             raise ValueError("Environment not set for agent to learn")
 
         print(f"Training {self.__class__.__name__} agent for {total_timesteps} timesteps...")
-        callback_ = SaveOnBestTrainingRewardCallback(check_freq=6000, log_dir=f"agent/models/{self.base_name}") # TODO: remove
+        callback_ = SaveOnBestTrainingRewardCallback(check_freq=6000, log_dir=f"logic/agent/models/{self.base_name}") # TODO: remove
         self.instance.learn(total_timesteps, callback=callback_)
 
     def predict(self, obs, deterministic=True):

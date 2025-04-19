@@ -23,7 +23,7 @@ recs = []
 
 market = pm.Market()
 
-marginal_price_ts = pd.read_csv("forecasting/data/price.csv").iloc[:NUM_STEPS, :]
+marginal_price_ts = pd.read_csv("forecasting/price.csv").iloc[:NUM_STEPS, :]
 marginal_price_ts["PRICE"] = marginal_price_ts["PRICE"] / 1000 # convert to kWh
 
 for rec_id in range(NUM_RECS):
