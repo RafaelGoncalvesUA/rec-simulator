@@ -20,20 +20,20 @@ class BasicAgent(BaseAgent):
         # 1. Excess PV -> try to charge battery
         if net_load < 0:
             if soc < 1.0 and capa_to_charge > 0:
-                return 4, None  # Charge battery with PV + grid (Action 4 - grid mode)
+                return 0, None  # Charge battery
             else:
                 return 3, None # Export excess
 
         # 2. Not enough PV -> try to discharge battery
         elif net_load > 0:
-            if soc > 0 and capa_to_discharge > 0:
-                return 1, None  # Discharge battery (Action 1 - grid/genset mode)
+            if capa_to_discharge > 0:
+                return 1, None  # Discharge battery
 
             # 3. Battery empty → use grid
             else:
                 return 2, None  # Grid import
-
-        return 0, None
+            
+        return 2, None # fallback
 
     def save(self, path_str):
         print("Skipping saving for BasicAgent...")

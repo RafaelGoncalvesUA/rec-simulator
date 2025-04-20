@@ -1,36 +1,51 @@
 from logic.agent.sb3_agent import SB3Agent
-from logic.agent.random_agent import RandomAgent
 from logic.agent.heuristics_agent import BasicAgent
 from utils.microgrid_template import microgrid_from_template
 from utils.custom_simulator.concrete_env import CustomEnv
 from torch import nn
-from neuralprophet.utils import load
-import os
-
+import pymgrid
 import os
 import pandas as pd
+import numpy as np
 from itertools import product
-
-from pymgrid import MicrogridGenerator as mgen
-
+from utils.custom_simulator import microgrid_generator as mgen
 import warnings
+import requests
+from dotenv import load_dotenv
 
 warnings.filterwarnings("ignore")
+load_dotenv("./my.env")
+
+def send_pushover_message(title, message):
+    print("Sending pushover message:", message)
+
+    url = "https://api.pushover.net/1/messages.json"
+
+    data = {
+        "token": os.getenv("PUSHOVER_APP_TOKEN"),
+        "user": os.getenv("PUSHOVER_USER"),
+        "device": os.getenv("PUSHOVER_DEVICE"),
+        "title": title,
+        "message": message,
+    }
+
+    response = requests.post(url, data=data)
+    print(response.text)
 
 if os.path.exists("logs"):
     os.system("rm -rf logs")
-    os.system("rm -rf agent/models")
+    os.system("rm -rf logic/agent/models")
     os.system("rm agent.zip")
 
 # ----------------- load data -----------------
-generator = mgen.MicrogridGenerator(nb_microgrid=10)
+generator = mgen.MicrogridGenerator(nb_microgrid=25, random_seed=42, path=pymgrid.__path__[0])
 generator.generate_microgrid()
 microgrids = generator.microgrids
 
 predictors = {"grid_price_import": "run_24_12_model.np"}
 
 samples = []
-n_microgrids = 5
+n_microgrids = 10
 ctr = 0
 
 while len(samples) < n_microgrids:
@@ -55,22 +70,19 @@ config_space = {
         (SB3Agent, "DQN"),
         (SB3Agent, "A2C"),
         (SB3Agent, "PPO"),
-        (RandomAgent, "random"),
         (BasicAgent, "heuristics"),
     ],
+        
     "policy_act": [
         nn.ReLU,
-        # nn.Tanh,
+        nn.Tanh,
     ],
     "policy_net_arch": [
-        # [32, 32],   # narrower
+        [32, 32],   # narrower
         [64, 64],   # default
-        # [128, 128], # wider
+        [128, 128], # wider
     ],
-    "learning_rate": [5e-4],
-    # "learning_rate": [1e-4, 5e-4, 1e-3], 
-    # "batch_size": [32, 64, 128, 256],
-
+    "learning_rate": [1e-4, 5e-4, 1e-3, 5e-3],
     "train_steps": [100000],
 }
 
@@ -78,7 +90,7 @@ vals = [
     val for val in [dict(zip(config_space.keys(), val)) for val in product(*config_space.values())]
     
     # no need to variate the policy_act and policy_net_arch for RandomAgent / IdleAgent
-    if val["agent"][0] not in {RandomAgent, BasicAgent} or \
+    if val["agent"][0] not in {BasicAgent} or \
     (val["policy_act"] == config_space["policy_act"][0] and val["policy_net_arch"] == config_space["policy_net_arch"][0])
 ]
 
@@ -92,9 +104,7 @@ def serialise_config(config):
         "policy_act": config["policy_act"].__name__,
         "policy_net_arch": config["policy_net_arch"],
         "train_steps": config["train_steps"],
-        "train_test_split": config["train_test_split"],
-        "learning_rate": config["learning_rate"],
-        "batch_size": config["batch_size"],
+        "learning_rate": config["learning_rate"]
     }
 
 # ----------------- main benchmark loop -----------------
@@ -136,14 +146,15 @@ for i, config in enumerate(vals):
     
     # ------------------ fit agent -----------------
     print("Fitting agent...")
-    base_class, agent_type = config["agent"]
+    base_cls, agent_type = config["agent"]
+    
     obs = microgrid_env.reset(testing=False)
 
-    agent = base_class(
+    agent = base_cls(
         agent_type,
         microgrid_env,
         policy={"activation_fn": config["policy_act"], "net_arch": config["policy_net_arch"]},
-        extra_args={"learning_rate": config["learning_rate"], "batch_size": 32}
+        extra_args={"learning_rate": config["learning_rate"]}
     )
 
     agent.learn(total_timesteps=config["train_steps"])
@@ -152,12 +163,19 @@ for i, config in enumerate(vals):
     print("Testing agent...")
     obs = microgrid_env.reset(testing=True)
     costs = []
+    Y = []
 
     while not microgrid_env.done:
         action, _ = agent.predict(obs, deterministic=True)
         obs, reward, _, _ = microgrid_env.step(action)
         costs.append(-reward)
-        ctr += 1
+        Y.append(action)
+
+    # ------------------ save results -----------------
+
+    unique_action_idx, counts = np.unique(Y, return_counts=True)
+    actions_lst = ["charge", "full discharge", "import", "export", "genset", "other_5", "other_6"]
+    actions_dict = {actions_lst[i]: counts[idx] for idx, i in enumerate(unique_action_idx) if i < len(actions_lst)}
 
     results_df = pd.DataFrame(costs, columns=["costs"])
     
@@ -166,13 +184,14 @@ for i, config in enumerate(vals):
     results_df.to_csv(results_dir)
     microgrid_env.close()
     
-    total_cost = results_df["costs"].sum()
+    total_cost = sum(costs)
 
     agent_log = pd.DataFrame([{
         "config_id": i,
         "total_cost": total_cost,
         "total_cost_format": f'{total_cost:.4e}',
         **serialise_config(config),
+        **actions_dict,
     }])
 
     agent_log.to_csv(f"logs/benchmark_log.csv", index=False, mode="a", header=not os.path.exists("logs/benchmark_log.csv"))
@@ -182,13 +201,18 @@ for i, config in enumerate(vals):
         lowest_cost = total_cost
         agent.save("agent.zip")
 
-    print(f"Total cost: {total_cost:.4e}")
+    print(f"Total cost: {total_cost:.2e} ({total_cost})")
+
+    if i % 20 == 0:
+        send_pushover_message("Benchmark", f"Configuration {i + 1}/{len(vals)}: {total_cost:.2e} ({total_cost})")
+
+send_pushover_message("Benchmark", f"Finished benchmark with {len(vals)} configurations. Best cost: {lowest_cost:.2e} ({lowest_cost})")
 
 # ----------------- print best performers -----------------
 print("\n====== Best performer(s) ======")
 for idx in best_performers:
     print("--->", vals[idx])
-print(f"Lowest cost: {lowest_cost:.4e}")
+print(f"Lowest cost: {lowest_cost:.2e}")
 
 # ----------------- try to load best performer -----------------
 print("\n====== Running best performer for best config ======")

@@ -85,8 +85,8 @@ class CustomEnv(BaseEnvironment):
         updated_values['hour_cos'] = np.cos(2*np.pi*updated_values['hour'])  
         updated_values.pop('hour', None)
 
-        first_window_date = self.first_timestamp + datetime.timedelta(hours=self.mg._tracking_timestep-self.n_lags)
-        time_window = [first_window_date + datetime.timedelta(hours=i) for i in range(self.n_lags + self.forecast_horizon)]
+        # first_window_date = self.first_timestamp + datetime.timedelta(hours=self.mg._tracking_timestep-self.n_lags)
+        # time_window = [first_window_date + datetime.timedelta(hours=i) for i in range(self.n_lags + self.forecast_horizon)]
 
         s_ = np.array(list(updated_values.values()))
 
