@@ -10,27 +10,11 @@ import numpy as np
 from itertools import product
 from utils.custom_simulator import microgrid_generator as mgen
 import warnings
-import requests
 from dotenv import load_dotenv
+from src.utils.notification import send_pushover_message
 
 warnings.filterwarnings("ignore")
 load_dotenv("./my.env")
-
-def send_pushover_message(title, message):
-    print("Sending pushover message:", message)
-
-    url = "https://api.pushover.net/1/messages.json"
-
-    data = {
-        "token": os.getenv("PUSHOVER_APP_TOKEN"),
-        "user": os.getenv("PUSHOVER_USER"),
-        "device": os.getenv("PUSHOVER_DEVICE"),
-        "title": title,
-        "message": message,
-    }
-
-    response = requests.post(url, data=data)
-    print(response.text)
 
 if os.path.exists("logs"):
     os.system("rm -rf logs")

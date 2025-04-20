@@ -9,6 +9,10 @@ import pandas as pd
 import numpy as np
 import pickle as pkl
 import random
+from dotenv import load_dotenv
+from src.utils.notification import send_pushover_message
+
+load_dotenv("./my.env")
 
 NUM_STEPS = 100000 # high enough to cover all the simulation
 NUM_RECS = 10
@@ -20,7 +24,6 @@ _, samples = microgrid_generator()
 print("Generated microgrid templates.\n")
 
 recs = []
-
 market = pm.Market()
 
 marginal_price_ts = pd.read_csv("forecasting/price.csv").iloc[:NUM_STEPS, :]
@@ -85,30 +88,41 @@ for rec_id in range(NUM_RECS):
 num_iters = 0
 num_iters_with_transactions = 0
 
-while not recs[0].done:
-    print("Iteration no. {}".format(num_iters))
+try:
+    while not recs[0].done:
+        print("Iteration no. {}".format(num_iters))
 
-    for rec in recs:
-        energy_need = rec.handle_exportations()
-        rec.negotiate(energy_need)
+        for rec in recs:
+            energy_need = rec.handle_exportations()
+            rec.negotiate(energy_need)
 
-    transactions, extras = market.run("p2p", r=seed)
-    market.bm = BidManager() # clear bids
+        transactions, extras = market.run("p2p", r=seed)
+        market.bm = BidManager() # clear bids
 
-    if not transactions.get_df().empty:
-        num_iters_with_transactions += 1
+        if not transactions.get_df().empty:
+            num_iters_with_transactions += 1
 
-    for rec in recs:
-        rec.handle_market_transactions(transactions.get_df())
-        rec.handle_importations()
-        rec.step()
-        
-        absolute_saving = rec.baseline_cost - rec.cost
-        percentage_saving = (absolute_saving / rec.baseline_cost) * 100
+        for rec in recs:
+            rec.handle_market_transactions(transactions.get_df())
+            rec.handle_importations()
+            rec.step()
+            
+            absolute_saving = rec.baseline_cost - rec.cost
+            percentage_saving = (absolute_saving / rec.baseline_cost) * 100
 
-        # print(f"Saved REC {rec.rec_id}: {absolute_saving:.2f}$ ({percentage_saving:.2f}%)")
+            # print(f"Saved REC {rec.rec_id}: {absolute_saving:.2f}$ ({percentage_saving:.2f}%)")
 
-    num_iters += 1
+        if num_iters % 100 == 0:
+            send_pushover_message("Simulation", f"Iteration {num_iters} finished.")
+
+        num_iters += 1
+
+except Exception as e:
+    print(f"Simulation interrupted: {e}")
+    send_pushover_message("Simulation interrupted", str(e))
+    raise e
+
+send_pushover_message("Simulation finished", "Simulation completed successfully.")
 
 for rec in recs:
     logs = pd.DataFrame(rec.logs)
