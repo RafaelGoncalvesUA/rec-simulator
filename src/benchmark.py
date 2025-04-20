@@ -11,7 +11,7 @@ from itertools import product
 from utils.custom_simulator import microgrid_generator as mgen
 import warnings
 from dotenv import load_dotenv
-from src.utils.notification import send_pushover_message
+from utils.notification import send_pushover_message
 
 warnings.filterwarnings("ignore")
 load_dotenv("./my.env")

@@ -10,7 +10,7 @@ import numpy as np
 import pickle as pkl
 import random
 from dotenv import load_dotenv
-from src.utils.notification import send_pushover_message
+from utils.notification import send_pushover_message
 
 load_dotenv("./my.env")
 
