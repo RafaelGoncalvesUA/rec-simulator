@@ -9,7 +9,7 @@ def agent_routine(agent_type: str, env: Input[Artifact], agent: Output[Model]):
     import os
 
     microgrid_env = pkl.load(open(os.path.join(env.path, 'env.pkl'), 'rb'))
-    agent = SB3Agent.load(agent_type, os.path.join(env.path, 'agent.zip'), microgrid_env)
+    agent_model = SB3Agent(agent_type, microgrid_env, extra_args={"learning_rate": 5e-4})
 
-    agent.learn(total_timesteps=os.getenv("TRAIN_STEPS"))
-    agent.save(os.path.join(agent.path, 'agent.zip'))
+    agent_model.learn(total_timesteps=100000)
+    agent_model.save(os.path.join(agent.path, 'agent.zip'))

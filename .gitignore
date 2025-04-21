@@ -10,6 +10,9 @@ tmp/
 logs/
 lightning_logs/
 
+# Environment variables (not needed for Docker images)
+my.env
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

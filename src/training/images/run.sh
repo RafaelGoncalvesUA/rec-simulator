@@ -18,13 +18,14 @@ docker build -t rafego16/pipeline-custom-image:latest .
 docker push rafego16/pipeline-custom-image:latest
 
 cd ../../agent-libs
-cp ../../../utils/*.py .
 cp ../../../requirements.txt .
-mkdir agent && cp -r ../../../logic/agent/* agent/
+mkdir utils & cp -r ../../../utils/* utils/
+mkdir logic && mkdir logic/agent & cp -r ../../../logic/agent/* logic/agent/
+mkdir forecasting && cp -r ../../../forecasting/* forecasting/
 echo "===Building a training image for Kubeflow pipeline..."
 docker build -t rafego16/pipeline-custom-image-train:latest .
-rm *.py && rm -r agent
+rm -r logic & rm -r utils & rm -r forecasting
 docker push rafego16/pipeline-custom-image-train:latest
 
 docker rmi pipeline-custom-image-builder:latest > /dev/null 2>&1
-docker rmi $(docker images -f "dangling=true" -q) --force > /dev/null 2>&1
+docker rmi $(docker images -f "dangling=true" -q) --force > /dev/null 2>&1 

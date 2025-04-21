@@ -1,7 +1,7 @@
 import pandas as pd
 from pymgrid import MicrogridGenerator as mgen
-from utils.custom_simulator.concrete_env import CustomEnv
-from utils.custom_simulator.microgrid import Microgrid
+from .custom_simulator.concrete_env import CustomEnv
+from .custom_simulator.microgrid import Microgrid
 import pymgrid
 import random
 
@@ -14,21 +14,11 @@ def microgrid_generator(nb_microgrid=25) -> mgen.MicrogridGenerator:
     return generator, microgrid_lst
 
 
-def custom_microgrid_generator(nb_microgrid=10) -> mgen.MicrogridGenerator:
+def get_microgrid_template(mg_id, nb_microgrid=10):
     generator = mgen.MicrogridGenerator(nb_microgrid=nb_microgrid, path=pymgrid.__path__[0])
     generator.generate_microgrid(False)
     microgrid_lst = generator.microgrids
     
-    samples = [microgrid_lst[9]] + microgrid_lst[1:5] + [microgrid_lst[6]]
-    return generator, samples
-
-
-def get_microgrid_template(mg_id, generator=False):
-    if generator:
-        generator, _ = microgrid_generator()
-
-    microgrid_lst = generator.microgrids
-
     samples = [microgrid_lst[9]] + microgrid_lst[1:5] + [microgrid_lst[6]]
     return samples[mg_id]
 

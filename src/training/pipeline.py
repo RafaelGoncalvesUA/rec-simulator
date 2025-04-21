@@ -18,7 +18,6 @@ def agent_pipeline(agent_id: int, agent_type: str, template_id: int):
     ingested_data = data_ingestion(agent_id=agent_id)
 
     prepared_data = data_preparation(
-        agent_type=agent_type,
         template_id=template_id,
         dataset_dir=ingested_data.outputs["dataset_dir"]
     )

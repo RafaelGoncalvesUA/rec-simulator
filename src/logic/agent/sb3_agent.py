@@ -8,7 +8,7 @@ import random
 
 random.seed(42)
 
-from logic.agent._save_callback import SaveOnBestTrainingRewardCallback # TODO: remove
+from ._save_callback import SaveOnBestTrainingRewardCallback # TODO: remove
 
 class SB3Agent(BaseAgent):
     # Supported agents for discrete action space
@@ -64,7 +64,7 @@ class SB3Agent(BaseAgent):
             )
 
     def learn(self, total_timesteps=1, callback=None):
-        if not self.env:
+        if not self.instance:
             raise ValueError("Environment not set for agent to learn")
 
         print(f"Training {self.__class__.__name__} agent for {total_timesteps} timesteps...")
