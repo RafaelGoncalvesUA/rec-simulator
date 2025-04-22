@@ -33,7 +33,7 @@ class RenewableEnergyCommunity:
     def done(self):
         return any(env.done for env in self.environments.values())
 
-    def add_tenant(self, microgrid, env, agent_spec):
+    def add_tenant(self, microgrid, env,  agent_spec=(BasicAgent, "heuristics", None, None, None)):
         tenant_id = self.n_tenants
         self.microgrids[tenant_id] = microgrid
         self.environments[tenant_id] = env
@@ -68,16 +68,17 @@ class RenewableEnergyCommunity:
             "total_demand": self.total_demand,
             "energy_pool": self.energy_pool,
             "cost": self.step_cost,
+            **{f"tenant_{i}_cost": self.individual_costs[i] for i in range(self.n_tenants)},
+            "sum_tenant_costs": sum(self.individual_costs.values()),
             "accumulated_cost": self.cost,
-            "accumulated_baseline_cost": self.baseline_cost,
+            "no_market_accumulated_cost": self.baseline_cost,
             "absolute_accumulated_saving": absolute_saving,
             "percentage_accumulated_saving": percentage_saving,
-            **{f"tenant_{i}_cost": self.individual_costs[i] for i in range(self.n_tenants)},
         })
 
-    def train_agent(self, tenant_id, agent_spec=(BasicAgent, "heuristics", None, None)):
+    def train_agent(self, tenant_id, agent_spec):
         agent_path = f"agent_rec{self.rec_id}_tenant{tenant_id}.zip"
-        agent_cls, agent_name, policy, lr = agent_spec
+        agent_cls, agent_name, policy_act, policy_net_arch, lr = agent_spec
 
         if os.path.exists(agent_path):
             agent = agent_cls.load(agent_name, agent_path)
@@ -88,7 +89,7 @@ class RenewableEnergyCommunity:
             agent = agent_cls(
                 agent_name,
                 self.environments[tenant_id],
-                policy=policy,
+                policy={"activation_fn": policy_act, "net_arch": policy_net_arch},
                 extra_args={"learning_rate": lr},
             )
             

@@ -11,6 +11,7 @@ shimmy
 stable-baselines3==1.0.0
 gym @ git+https://github.com/Pythoniasm/gym-fork.git@fix-v0.21.0 # gym==0.21.0
 neuralprophet
+pymarket
 
 # torch
 # --extra-index-url https://download.pytorch.org/whl/cu118
