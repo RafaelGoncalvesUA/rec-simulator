@@ -10,5 +10,5 @@ spec:
         image: rafego16/rl-agent-server:latest
 
 # (errors) kubectl get inferenceservice random-predictor -n test -o yaml | grep -A 5 -m 1 message
-# remote: curl -H "Content-Type: application/json" http://random-predictor.test.svc.cluster.local/v1/models/my-agent:predict -d @./test.json
+# remote: curl -H "Content-Type: application/json" http://random-predictor.my-service.svc.cluster.local/v1/models/my-agent:predict -d @./test.json
 # local: curl -H "Content-Type: application/json" http://localhost:8080/v1/models/my-agent:predict -d @./test.json

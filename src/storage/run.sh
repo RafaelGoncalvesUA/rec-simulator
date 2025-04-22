@@ -18,7 +18,7 @@ kubectl apply -f minio-hpa.yaml -n minio
 # ======= Service =======
 # PGPASSWORD=$PGPOSTGRESPASSWORD psql -U app -h timescaledb-r.timescaledb.svc.cluster.local -p 5432 app
 
-kubeclt create namespace timescaledb > /dev/null 2>&1 # Create namespace if it doesn't exist
+kubectl create namespace timescaledb > /dev/null 2>&1 # Create namespace if it doesn't exist
 kubectl delete -f timescaledb.yaml -n timescaledb > /dev/null 2>&1 # delete if exists
 kubectl delete -f timescaledb-hpa.yaml -n timescaledb > /dev/null 2>&1 # delete if exists
 

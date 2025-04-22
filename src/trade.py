@@ -11,16 +11,36 @@ import pickle as pkl
 import random
 from dotenv import load_dotenv
 from utils.notification import send_pushover_message
+from logic.agent.sb3_agent import SB3Agent
+from torch import nn
+import pymgrid
+from utils.custom_simulator import microgrid_generator as mgen
 
 load_dotenv("./my.env")
 
 NUM_STEPS = 100000 # high enough to cover all the simulation
 NUM_RECS = 10
-NUM_TENANTS = 5
+NUM_TENANTS = 10
 LOAD_NEW_TS = False
+BASELINE_AGENTS = False
 seed = np.random.RandomState(42)
 
-_, samples = microgrid_generator()
+best_mg_agents =  [
+    (SB3Agent, "A2C", nn.ReLU, [128, 128], 0.001),
+    (SB3Agent, "DQN", nn.ReLU, [64, 64], 0.0001),
+    (SB3Agent, "DQN", nn.ReLU, [64, 64], 0.0001),
+    (SB3Agent, "DQN", nn.Tanh, [64, 64], 0.001),
+    (SB3Agent, "DQN", nn.ReLU, [64, 64], 0.0001),
+    (SB3Agent, "PPO", nn.Tanh, [128, 128], 0.001),
+    (SB3Agent, "PPO", nn.Tanh, [128, 128], 0.001),
+    (SB3Agent, "DQN", nn.ReLU, [64, 64], 0.0001),
+    (SB3Agent, "PPO", nn.Tanh, [128, 128], 0.001),
+    (SB3Agent, "DQN", nn.ReLU, [64, 64], 0.0001)
+]
+
+generator = mgen.MicrogridGenerator(nb_microgrid=25, random_seed=42, path=pymgrid.__path__[0])
+generator.generate_microgrid()
+microgrids = generator.microgrids
 print("Generated microgrid templates.\n")
 
 recs = []
@@ -35,7 +55,7 @@ for rec_id in range(NUM_RECS):
 
     ctr = 0
     while len(rec.microgrids) < NUM_TENANTS:
-        template = samples[ctr]
+        template = microgrids[ctr]
 
         new_parameters = {
             "last_soc": template._df_record_state["battery_soc"][0],
@@ -78,7 +98,11 @@ for rec_id in range(NUM_RECS):
         print("Using template no. {}...".format(ctr))
         microgrid, env = microgrid_from_template(template, new_parameters)
 
-        rec.add_tenant(microgrid, env)
+        if BASELINE_AGENTS:
+            rec.add_tenant(microgrid, env)
+        else:
+            rec.add_tenant(microgrid, env, *best_mg_agents[rec.n_tenants])
+        
         ctr += 1
         print()
 

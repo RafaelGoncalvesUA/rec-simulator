@@ -2,7 +2,7 @@ import time
 from dotenv import load_dotenv
 from pymgrid import MicrogridGenerator as mgen
 from pymgrid.Environments.pymgrid_cspla import MicroGridEnv as CsDaMicroGridEnv
-from db import init_db
+from utils.db import init_db
 import os
 import requests
 

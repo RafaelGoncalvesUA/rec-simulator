@@ -3,14 +3,13 @@ pymgrid/
 src/logic/agent/models/*
 benchmark.txt
 
-# Drafts, temp files
+# Drafts, temp files, and others
 tmp/
 **.pkl
 **agent**.zip
 logs/
 lightning_logs/
-
-# Environment variables (not needed for Docker images)
+test/*/*.csv
 my.env
 
 # Byte-compiled / optimized / DLL files

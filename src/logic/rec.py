@@ -3,7 +3,7 @@ import os
 
 class RenewableEnergyCommunity:
     def __init__(
-        self, rec_id, market, agent=(BasicAgent, "heuristics"), marginal_price_ts=None
+        self, rec_id, market, marginal_price_ts=None
     ):
         self.rec_id = rec_id
         self.cost = 0
@@ -16,9 +16,6 @@ class RenewableEnergyCommunity:
         self.n_tenants = 0
 
         self.market = market
-        self.agent_cls = agent[0]
-        self.agent_name = agent[1]
-
         self.logs = []
 
         if marginal_price_ts is None:
@@ -36,17 +33,17 @@ class RenewableEnergyCommunity:
     def done(self):
         return any(env.done for env in self.environments.values())
 
-    def add_tenant(self, microgrid, env):
+    def add_tenant(self, microgrid, env, agent_spec):
         tenant_id = self.n_tenants
         self.microgrids[tenant_id] = microgrid
         self.environments[tenant_id] = env
         self.reputation[tenant_id] = 0
         self.individual_costs[tenant_id] = 0
         self.n_tenants += 1
-        #print("REC {} | Added tenant {}.".format(self.rec_id, tenant_id))
-
-        self.train_agent(tenant_id)
+        
+        self.train_agent(tenant_id, agent_spec)
         self.observations[tenant_id] = self.environments[tenant_id].reset(testing=True)
+        #print("REC {} | Added tenant {}.".format(self.rec_id, tenant_id))
 
     def remove_tenant(self, tenant_id):
         if tenant_id in self.agents:
@@ -78,19 +75,26 @@ class RenewableEnergyCommunity:
             **{f"tenant_{i}_cost": self.individual_costs[i] for i in range(self.n_tenants)},
         })
 
-    def train_agent(self, tenant_id):
+    def train_agent(self, tenant_id, agent_spec=(BasicAgent, "heuristics", None, None)):
         agent_path = f"agent_rec{self.rec_id}_tenant{tenant_id}.zip"
+        agent_cls, agent_name, policy, lr = agent_spec
 
         if os.path.exists(agent_path):
-            agent = self.agent_cls.load(self.agent_name, agent_path)
+            agent = agent_cls.load(agent_name, agent_path)
 
         else:
-            agent = self.agent_cls(self.agent_name, None)
+            self.environments[tenant_id].reset(testing=False)
+            
+            agent = agent_cls(
+                agent_name,
+                self.environments[tenant_id],
+                policy=policy,
+                extra_args={"learning_rate": lr},
+            )
+            
             agent.learn(100000)
             agent.save(agent_path)
 
-        agent = BasicAgent("heuristics", None)
-        agent.learn(100000)
         self.agents[tenant_id] = agent
 
     def negotiate(self, energy_need):

@@ -14,14 +14,12 @@ function press_enter_to_continue {
     fi
 }
 
+tmux new-session -d -s k3s_monitor 'python3 ../k3s_monitor.py'
+cd ../../src
+
 echo "---> Setting up MinIO object storage..."
 cd storage
 bash run.sh
-press_enter_to_continue
-
-echo "---> Compiling Kubeflow training pipeline..."
-cd ../training
-python3 pipeline.py
 press_enter_to_continue
 
 echo "---> Deploying the inference service..."
@@ -34,9 +32,14 @@ cd collector
 bash run.sh
 press_enter_to_continue
 
-echo "---> Deploying a producer script to generate data..."
-cd ../../client
-bash run.sh
-press_enter_to_continue
+cd ../../../test/boot
 
-echo "DONE."
+echo "Stress testing the inference service..."
+kubectl create namespace test > /dev/null 2>&1
+kubectl delete -f perf.yaml -n test> /dev/null 2>&1
+kubectl create -f perf.yaml -n test
+
+TEST_PODNAME=$(kubectl get pods -n test -o jsonpath='{.items[0].metadata.name}')
+kubectl logs ${TEST_PODNAME} -n test > test_deploy_results.txt
+
+tmux kill-session -t k3s_monitor
