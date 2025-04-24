@@ -15,18 +15,29 @@ function press_enter_to_continue {
 }
 
 tmux new-session -d -s k3s_monitor 'python3 ../k3s_monitor.py'
+tmux new-session -d -s kubeflow-forward 'kubectl port-forward svc/istio-ingressgateway -n istio-system 8080:80'
 cd ../../src
 
 echo "---> Compiling Kubeflow training pipeline..."
-cd ../training
+cd training
+sed -i 's/enableCache: true/enableCache: false/g' pipeline.yaml
 python3 pipeline.py
-press_enter_to_continue
+
+sleep 25
 
 cd ../ # to src
 echo "---> Deploying Kubeflow training pipelines..."
-for i in {1..100}
+for i in {1..50}
 do
     echo "Deploying pipeline $i/100..."
     python3 -m training.deploy
-    press_enter_to_continue
+    sleep 15
 done
+
+kubectl delete pods -n kubeflow-user-example-com --field-selector=status.phase==Succeeded
+kubectl delete pods -n kubeflow-user-example-com --field-selector=status.phase==Failed
+
+tmux kill-session -t k3s_monitor
+tmux kill-session -t kubeflow-forward
+
+python3 process_events.py

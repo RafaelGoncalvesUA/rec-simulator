@@ -1,4 +1,4 @@
-# Core
+# Core (Simulator)
 pymgrid @ git+https://github.com/RafaelGoncalvesUA/pymgrid
 pandas<2.0.0
 numpy<2.0.0
@@ -11,10 +11,8 @@ shimmy
 stable-baselines3==1.0.0
 gym @ git+https://github.com/Pythoniasm/gym-fork.git@fix-v0.21.0 # gym==0.21.0
 neuralprophet
-pymarket
-
-# torch
-# --extra-index-url https://download.pytorch.org/whl/cu118
+torch
+--extra-index-url https://download.pytorch.org/whl/cu118
 
 # Visualisation
 plotly
@@ -22,11 +20,14 @@ kaleido
 tabulate
 PyQt5
 ipykernel
+scikit-learn
+graphviz
 
 # Optimisation
-ray[tune]
+# ray[tune]
 
-# OMIE datasets
+# Market
+pymarket
 OMIEData
 
 # Pipeline
@@ -34,3 +35,6 @@ kfp
 
 # Vars
 python-dotenv
+
+# Drift detection
+river

@@ -20,6 +20,7 @@ run = kfp_client.create_run_from_pipeline_package(
         "agent_type": "PPO",
         'template_id': 0,
     },
+    enable_caching=False,
 )
 
 # run: python -m training.deploy

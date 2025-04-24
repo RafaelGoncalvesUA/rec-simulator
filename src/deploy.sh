@@ -14,7 +14,7 @@ function press_enter_to_continue {
     fi
 }
 
-echo "---> Setting up MinIO object storage..."
+echo "---> Setting up MinIO object storage and TimescaleDB..."
 cd storage
 bash run.sh
 press_enter_to_continue

@@ -35,7 +35,7 @@ def shuffle_chunks(lst, chunk_size, seed=None):
     return final_lst
 
 
-def microgrid_from_template(base, new_setting, horizon=24, timestep=1):
+def microgrid_from_template(base, new_setting, horizon=24, timestep=1, return_new_env=True):
     parameters = base.parameters.copy()
     parameters["soc"] = [new_setting["last_soc"]]
     parameters["capa_to_charge"] = [new_setting["last_capa_to_charge"]]
@@ -62,9 +62,12 @@ def microgrid_from_template(base, new_setting, horizon=24, timestep=1):
 
     mg = Microgrid(param_dict, horizon=horizon, timestep=timestep)
 
-    new_env = CustomEnv({'microgrid': mg,
-                        'forecast_args': None,
-                        'resampling_on_reset': False,
-                        'baseline_sampling_args': None})
+    if return_new_env:
+        new_env = CustomEnv({'microgrid': mg,
+                            'forecast_args': None,
+                            'resampling_on_reset': False,
+                            'baseline_sampling_args': None},
+                    )
+        return mg, new_env
 
-    return mg, new_env
+    return mg, None

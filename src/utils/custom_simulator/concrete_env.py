@@ -1,7 +1,6 @@
 from utils.custom_simulator.base_env import BaseEnvironment
 from pymgrid.Environments import Preprocessing
 from gym.spaces import Discrete
-from neuralprophet import NeuralProphet
 import datetime
 import pandas as pd
 import numpy as np
@@ -43,7 +42,7 @@ class CustomEnv(BaseEnvironment):
     def __init__(
         self,
         env_config,
-        predictors: dict[str, NeuralProphet] = None,
+        predictors = None,
         n_lags=0,
         forecast_steps=[],
         first_timestamp=datetime.datetime(2024, 1, 1),

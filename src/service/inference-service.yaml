@@ -2,7 +2,7 @@ apiVersion: serving.kserve.io/v1beta1
 kind: InferenceService
 metadata:
   name: random-predictor
-  namespace: test
+  namespace: my-service
 spec:
   predictor:
     containers:

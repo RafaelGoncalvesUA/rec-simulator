@@ -8,12 +8,14 @@ docker push rafego16/rl-agent-server:latest
 echo "===Restoring directory structure..."
 rm pipeline.yaml
 rm -r agent
-mv server.py server && rm *.py && mv server server.py
+mv server.py server
+rm *.py
+mv server server.py
 
 echo "===Applying the inference service..."
-kubectl create namespace service > /dev/null 2>&1 # create ns if does not exist
-kubectl delete -f inference-service.yaml -n service > /dev/null 2>&1 # delete if exists
-kubectl apply -f inference-service.yaml -n service
+kubectl create namespace my-service > /dev/null 2>&1 # create ns if does not exist
+kubectl delete -f inference-service.yaml -n my-service > /dev/null 2>&1 # delete if exists
+kubectl apply -f inference-service.yaml -n my-service
 
 # echo "===Waiting for the service to be ready..."
 # while true; do
