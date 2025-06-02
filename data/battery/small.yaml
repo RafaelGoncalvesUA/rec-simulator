@@ -1,0 +1,9 @@
+# small capacity, higher efficiency, and faster charging rate
+small_battery:
+  min_capacity: 10
+  max_capacity: 100
+  max_charge: 50
+  max_discharge: 50
+  efficiency: 0.9
+  init_soc: 0.2
+  init_charge: null
