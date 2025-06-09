@@ -24,6 +24,7 @@ marginal_price_ts.to_csv("price.csv", index=False)
 fig = px.line(marginal_price_ts, x="TIME", y="PRICE", title="Marginal Price Time Series")
 fig.update_traces(line=dict(width=2))
 fig.update_layout(
+    font=dict(size=18),
     xaxis_title="Time",
     yaxis_title="Price (kWh)",
     xaxis=dict(showgrid=True, zeroline=False),

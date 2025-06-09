@@ -119,6 +119,9 @@ for i, config in enumerate(vals):
 
         microgrid, _ = microgrid_from_template(template, new_setting, horizon=24, timestep=1)
 
+        print(microgrid.battery.capacity)
+        exit(0)
+
         microgrid_env = CustomEnv({'microgrid': microgrid,
                                 'forecast_args': None,
                                 'resampling_on_reset': False,

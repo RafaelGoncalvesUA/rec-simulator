@@ -116,6 +116,7 @@ def simulate_drift(delta):
         fig.add_vline(x=drift_x, line_width=2, line_dash="dash", line_color="red")
 
     fig.update_layout(
+        font=dict(size=18),
         width=1000,
         height=450,
         showlegend=False,

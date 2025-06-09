@@ -82,7 +82,7 @@ def simulate_drift(delta):
 obs_df, drift_1e_7 = simulate_drift(1e-7)
 _, drift_1e_2 = simulate_drift(1e-2)  # Use same obs_df since env reset inside simulate_drift
 
-subplot_titles = list(obs_df.columns)[:2]
+subplot_titles = ["Load (MWh)", "PV Generation (MWh)"]
 
 fig = make_subplots(
     rows=2, cols=1,
@@ -91,8 +91,11 @@ fig = make_subplots(
     vertical_spacing=0.3
 )
 
+for annotation in fig['layout']['annotations']:
+    annotation['font'] = dict(size=19)
+
 # Plot observations for first two variables with original colors but no legend
-for i, col in enumerate(subplot_titles):
+for i, col in enumerate(obs_df.columns[:2]):
     fig.add_trace(
         go.Scatter(
             x=obs_df.index,
@@ -106,7 +109,7 @@ for i, col in enumerate(subplot_titles):
 # Add drift detection vertical lines for delta=1e-7 (blue)
 for drift_x in drift_1e_7:
     fig.add_vline(
-        x=drift_x,
+        x=drift_x-45,
         line_width=2,
         line_dash="dash",
         line_color="blue",
@@ -115,13 +118,13 @@ for drift_x in drift_1e_7:
 # Add drift detection vertical lines for delta=1e-2 (red)
 for drift_x in drift_1e_2:
     fig.add_vline(
-        x=drift_x,
+        x=drift_x-45,
         line_width=2,
         line_dash="dash",
         line_color="red",
     )
 
-fig.update_xaxes(title_text="Time", row=2, col=1)
+fig.update_xaxes(title_text="Timesteps", row=2, col=1)
 
 # Add legend entries for drift lines only
 fig.add_trace(go.Scatter(x=[None], y=[None], mode='lines',
@@ -132,6 +135,7 @@ fig.add_trace(go.Scatter(x=[None], y=[None], mode='lines',
                          name='δ=1e-2'), row=1, col=1)
 
 fig.update_layout(
+    font=dict(size=17),
     width=1000,
     height=450,
     showlegend=True,

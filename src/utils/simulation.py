@@ -137,6 +137,7 @@ def plot_results(config_files, labels):
     
     # Layout
     fig.update_layout(
+    font=dict(size=18),
         title='Cumulative Operational Cost',
         xaxis_title='Step',
         yaxis_title='Cost ($)',

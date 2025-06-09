@@ -143,8 +143,6 @@ unique_action_idx, counts = np.unique(Y, return_counts=True)
 actions_dict = {actions_lst[i]: counts[idx] for idx, i in enumerate(unique_action_idx) if i < len(actions_lst)}
 print("Actions:", actions_dict)
 
-exit(0)
-
 # ----------------- model_interpretability -----------------
 clf = DecisionTreeClassifier(max_depth=20, min_samples_split=8)
 clf.fit(X, Y)
@@ -189,5 +187,7 @@ dot_data = export_graphviz(
     rounded=True,
     max_depth=2,
 )
+
 graph = graphviz.Source(dot_data)
-graph.render("decision_tree", format="png", cleanup=True)
+graph.render("decision_tree", format="pdf", cleanup=True)
+print("Done")

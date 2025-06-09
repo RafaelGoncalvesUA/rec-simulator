@@ -14,27 +14,27 @@ neuralprophet
 torch
 --extra-index-url https://download.pytorch.org/whl/cu118
 
-# Visualisation
-plotly
-kaleido
-tabulate
-PyQt5
-ipykernel
-scikit-learn
-graphviz
+# # Visualisation
+# plotly
+# kaleido
+# tabulate
+# PyQt5
+# ipykernel
+# scikit-learn
+# graphviz
 
-# Optimisation
-# ray[tune]
+# # Optimisation
+# # ray[tune]
 
-# Market
-pymarket
-OMIEData
+# # Market
+# pymarket
+# OMIEData
 
-# Pipeline
-kfp
+# # Pipeline
+# kfp
 
-# Vars
-python-dotenv
+# # Vars
+# python-dotenv
 
-# Drift detection
-river
+# # Drift detection
+# river
