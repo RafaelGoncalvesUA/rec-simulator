@@ -1,0 +1,7 @@
+mode: distributed
+statefulset:
+  replicaCount: 3
+  drivesPerNode: 2
+auth:
+  rootUser: minio
+  rootPassword: minio123

@@ -1,0 +1,17 @@
+10 - minio has 2 pods
+14 - timescaledb has 1 pods
+64 - my-service has 1 pods
+Stress pods: 17
+Stress pods: 27
+Stress pods: 27
+Stress pods: 27
+Stress pods: 27
+Stress pods: 27
+Stress pods: 27
+Stress pods: 27
+Stress pods: 27
+Stress pods: 27
+Stress pods: 27
+Stress pods: 27
+Stress pods: 27
+Stress pods: 11
