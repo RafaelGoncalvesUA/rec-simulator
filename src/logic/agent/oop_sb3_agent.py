@@ -5,26 +5,27 @@ from stable_baselines3 import PPO, DQN, A2C
 import pymgrid
 from utils.custom_simulator import microgrid_generator as mgen
 from utils.custom_simulator.concrete_env import CustomEnv
+from typing import Generator, Tuple, Dict, Any
 
 class SB3Agent(BaseAgent):
     supported_agents = {"PPO": PPO, "DQN": DQN, "A2C": A2C}
 
-    def __init__(self, base: str, env: Env, extra_args: dict = {}):
+    def __init__(self, base: str, env: Env, extra_args: dict = {}) -> None:
         self.base_name = base
         self.base = self.supported_agents[self.base_name]
         self.env = Monitor(env, "monitor.csv")
         self.instance = self.base("MlpPolicy", self.env, **extra_args)
         self.logs = []
 
-    def learn(self, total_timesteps=1, callback=None):
+    def learn(self, total_timesteps: int = 1, callback: list = None) -> None:
         print(f"Training {self.__class__.__name__} agent for {total_timesteps} timesteps...")
         self.instance.learn(total_timesteps, callback=callback)
 
-    def predict(self, obs, deterministic=True):
+    def predict(self, obs: tuple, deterministic: bool = True) -> tuple:
         return self.instance.predict(obs, deterministic=deterministic)
 
     # Generator
-    def episode(self):
+    def episode(self) -> Generator[Tuple[float, float, bool, Dict[str, Any]], None, None]:
         obs = self.env.reset()
         done = False
         while not done:
